@@ -1,0 +1,124 @@
+.filter-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.filter-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #007bff;
+  transition: background-color 0.2s;
+  user-select: none;
+}
+
+.filter-dropdown-header:hover {
+  background: #e9ecef;
+}
+
+.filter-icon {
+  font-size: 16px;
+}
+
+.filter-dropdown-list {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 250px;
+  max-height: 400px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.filter-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.filter-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.filter-dropdown-item:hover {
+  background-color: #f8f9fa;
+}
+
+.filter-dropdown-item.active {
+  background-color: #e3f2fd;
+}
+
+.filter-padlock {
+  font-size: 14px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.filter-item-name {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-dropdown-item.active .filter-item-name {
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.filter-delete {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: #dc3545;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.filter-delete:hover {
+  color: #a71d2a;
+}
+
+.filter-delete:focus {
+  outline: none;
+}
+
+.filter-dropdown-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 8px 0;
+}
+
+.add-filter-item {
+  color: #333;
+  font-weight: 500;
+}
+
+.add-filter-icon {
+  font-size: 18px;
+  color: #007bff;
+  font-weight: bold;
+  width: 20px;
+  text-align: center;
+}
+

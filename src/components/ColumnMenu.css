@@ -1,0 +1,59 @@
+.column-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+  background: transparent;
+}
+
+.column-menu {
+  position: absolute;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  z-index: 1002;
+  overflow: hidden;
+}
+
+.column-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+  color: #333;
+}
+
+.column-menu-item:hover {
+  background-color: #f8f9fa;
+}
+
+.column-menu-item.active {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.menu-icon {
+  font-size: 14px;
+  width: 20px;
+  text-align: center;
+}
+
+.checkmark {
+  margin-left: auto;
+  color: #1976d2;
+  font-weight: bold;
+}
+
+.column-menu-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 4px 0;
+}
+

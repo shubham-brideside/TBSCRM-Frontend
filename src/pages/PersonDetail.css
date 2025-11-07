@@ -1,0 +1,131 @@
+.person-detail-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.person-detail-left {
+  flex: 1;
+  background: white;
+  padding: 20px;
+  overflow-y: auto;
+  border-right: 1px solid #ddd;
+}
+
+.person-detail-header {
+  margin-bottom: 24px;
+}
+
+.back-button {
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.back-button:hover {
+  background-color: #e9ecef;
+}
+
+.person-detail-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.person-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.detail-section {
+  padding-bottom: 24px;
+  border-bottom: 1px solid #eee;
+}
+
+.detail-section:last-child {
+  border-bottom: none;
+}
+
+.detail-section h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #666;
+  font-size: 14px;
+}
+
+.detail-value {
+  color: #333;
+  font-size: 14px;
+  text-align: right;
+}
+
+.deals-count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.deals-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: #007bff;
+  margin-bottom: 8px;
+}
+
+.deals-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.person-detail-right {
+  flex: 1;
+  background: #f8f9fa;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.right-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-size: 16px;
+}
+
+.person-detail-loading,
+.person-detail-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 18px;
+  color: #666;
+}
+
+.person-detail-error {
+  color: #dc3545;
+}
+
