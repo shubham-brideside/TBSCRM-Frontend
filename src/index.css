@@ -18,3 +18,140 @@ code {
     monospace;
 }
 
+:root {
+  --text: #1f2328;
+  --muted: #667085;
+  --border: #d1e7d7;
+  --bg: #ffffff;
+  --row: #ffffff;
+  --primary: #2563eb;
+  --header: #eaf7ef; /* light green to match reference */
+}
+
+.page { padding: 16px 20px; }
+.page h2 { font-size: 22px; margin: 0 0 12px; }
+
+/* Summary Boxes */
+.summary-boxes-container {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.summary-box {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  flex: 1;
+  max-width: 200px;
+}
+
+.summary-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.summary-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #28a745;
+  letter-spacing: 0.5px;
+}
+
+.toolbar { display: flex; gap: 8px; align-items: center; margin: 12px 0 16px; }
+.btn { border: 1px solid var(--border); background: #fff; padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.btn.active { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; }
+.btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.tabs { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.tab { font-size: 13px; color: var(--muted); cursor: pointer; padding: 4px 0; }
+.tab.active { color: var(--text); font-weight: 600; }
+
+.table-wrap { 
+  overflow-x: auto; 
+  border: 1px solid var(--border); 
+  border-radius: 8px;
+  scrollbar-width: thin; /* Firefox - thin scrollbar */
+  scrollbar-color: #cbd5e0 transparent; /* Firefox: thumb color, track color */
+}
+/* Thin scrollbar styling for Webkit browsers (Chrome, Safari, Edge) */
+.table-wrap::-webkit-scrollbar {
+  height: 2px; /* Very thin horizontal scrollbar - like fine hair */
+}
+.table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-wrap::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 1px;
+}
+.table-wrap::-webkit-scrollbar-thumb:hover {
+  background-color: #a0aec0;
+}
+.table { width: max-content; min-width: 1200px; border-collapse: collapse; table-layout: fixed; }
+.table th, .table td { border-bottom: 1px solid var(--border); border-right: 1px solid #dee2e6; padding: 10px 8px; font-size: 13px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.table th { background: var(--header); font-weight: 600; color: #1b4332; position: sticky; top: 0; z-index: 1; border-right: 1px solid #cdebd8; }
+.table th:last-child, .table td:last-child { border-right: none; }
+.table tr td { background: #fff; }
+.table tr {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.table tr:hover td {
+  background-color: #e3f2fd; /* Light blue hover - same as Persons page */
+}
+
+.text-green { color: #0f766e; }
+.text-red { color: #dc2626; }
+.text-black { color: #111827; }
+
+/* Priority color badges with light shades */
+.priority-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.priority-low {
+  background-color: #d1fae5; /* Light green */
+  color: #065f46; /* Dark green text */
+}
+.priority-medium {
+  background-color: #fef3c7; /* Light yellow */
+  color: #92400e; /* Dark yellow/brown text */
+}
+.priority-high {
+  background-color: #fee2e2; /* Light red/pink */
+  color: #991b1b; /* Dark red text */
+}
+
+.col-checkbox { width: 40px; }
+.col-done { width: 60px; }
+.col-subject { width: 220px; }
+.col-deal { width: 220px; }
+.col-id { width: 140px; }
+.col-phone { width: 140px; }
+.col-org { width: 120px; }
+.col-assignee { width: 200px; }
+.col-date { width: 140px; }
+.col-time { width: 120px; }
+.col-status { width: 120px; }
+.col-notes { width: 260px; }
+
+.link { color: #0f766e; text-decoration: none; }
+.link:hover { text-decoration: underline; }
+

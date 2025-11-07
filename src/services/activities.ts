@@ -43,7 +43,7 @@ export type Activity = {
   status?: string;
   callType?: string;
   notes?: string;
-  personId: number;
+  personId?: number;
   done?: boolean;
 };
 
@@ -55,11 +55,31 @@ export type PageResponse<T> = {
   size: number;
 };
 
+export interface ActivityFilters {
+  personId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  assignedUser?: string;
+  category?: string;
+  status?: string;
+  callType?: string;
+  done?: boolean;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
 export const activitiesApi = {
-  list: (params: Partial<{ personId: number; category: string; page: number; size: number }>) =>
+  list: (params: ActivityFilters) =>
     api.get<PageResponse<Activity>>('', { params }).then(r => r.data),
   create: (activity: Partial<Activity>) =>
     api.post<Activity>('', activity).then(r => r.data),
+  update: (id: number, activity: Partial<Activity>) =>
+    api.put<Activity>(`/${id}`, activity).then(r => r.data),
+  delete: (id: number) =>
+    api.delete(`/${id}`).then(() => {}),
+  markDone: (id: number, value: boolean) =>
+    api.post<Activity>(`/${id}/done`, null, { params: { value } }).then(r => r.data),
 };
 
 
