@@ -1,27 +1,29 @@
-import type { PersonFilterCondition } from '../types/person';
 import './FilterDropdown.css';
 
-interface SavedFilter {
+export interface FilterConditionLike {
+  field: string;
+  operator: string;
+  value: string;
+  id?: string;
+}
+
+export interface SavedFilter<T extends FilterConditionLike = FilterConditionLike> {
   name: string;
-  conditions: PersonFilterCondition[];
+  conditions: T[];
   isSystem?: boolean;
 }
 
-interface FilterDropdownProps {
-  savedFilters: SavedFilter[];
+interface FilterDropdownProps<T extends FilterConditionLike = FilterConditionLike> {
+  savedFilters: Array<SavedFilter<T>>;
   activeFilterName: string | null;
-  onSelectFilter: (filter: SavedFilter) => void;
+  onSelectFilter: (filter: SavedFilter<T>) => void;
   onAddNewFilter: () => void;
   onRemoveFilter?: (filterName: string) => void;
 }
 
-export default function FilterDropdown({
-  savedFilters,
-  activeFilterName,
-  onSelectFilter,
-  onAddNewFilter,
-  onRemoveFilter,
-}: FilterDropdownProps) {
+export default function FilterDropdown<T extends FilterConditionLike = FilterConditionLike>(
+  { savedFilters, activeFilterName, onSelectFilter, onAddNewFilter, onRemoveFilter }: FilterDropdownProps<T>,
+) {
   return (
     <div className="filter-dropdown">
       <div className="filter-dropdown-header">

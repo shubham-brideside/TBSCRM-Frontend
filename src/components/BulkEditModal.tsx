@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { Person } from '../types/person';
 import './BulkEditModal.css';
 
 interface BulkEditField {
@@ -19,7 +18,7 @@ interface BulkEditModalProps {
   onClose: () => void;
   onSave: (updates: Record<string, string | null>) => void;
   fields: BulkEditField[];
-  selectedPersons: Person[]; // rows being edited
+  selectedPersons: Array<Record<string, any>>; // rows being edited
 }
 
 export default function BulkEditModal({

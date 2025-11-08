@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { activitiesApi, type Activity, type PageResponse, type ActivityFilters } from '../services/activities';
-import FilterDropdown from '../components/FilterDropdown';
+import FilterDropdown, { type SavedFilter as DropdownSavedFilter } from '../components/FilterDropdown';
 import FilterModal, { type FilterCondition } from '../components/FilterModal';
 import ActivityModal from '../components/ActivityModal';
 import ColumnMenu from '../components/ColumnMenu';
@@ -15,7 +15,8 @@ export default function ActivitiesList() {
   const [filters, setFilters] = useState<ActivityFilters>({ page: 0, size: 25 });
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [savedFilters, setSavedFilters] = useState<Array<{ name: string; conditions: FilterCondition[] }>>([]);
+  type SavedFilterOption = DropdownSavedFilter<FilterCondition>;
+  const [savedFilters, setSavedFilters] = useState<SavedFilterOption[]>([]);
   const [activeFilterName, setActiveFilterName] = useState<string | null>(null);
   const [activeCustomFilters, setActiveCustomFilters] = useState<FilterCondition[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -114,7 +115,7 @@ export default function ActivitiesList() {
     setSortConfig(null);
   }, [category]);
 
-  const systemFilters = [
+  const systemFilters: SavedFilterOption[] = [
     { name: 'Activity Date today', conditions: [], isSystem: true },
     { name: 'Activity Date this week', conditions: [], isSystem: true },
     { name: 'Activity Date this month', conditions: [], isSystem: true },
@@ -293,7 +294,7 @@ export default function ActivitiesList() {
     setFilters(newFilters);
   }, [tab]);
 
-  const handleSelectFilter = (filter: { name: string; conditions: FilterCondition[]; isSystem?: boolean }) => {
+  const handleSelectFilter = (filter: SavedFilterOption) => {
     if (filter.isSystem) {
       // Handle system filters
       const today = new Date();
@@ -332,9 +333,15 @@ export default function ActivitiesList() {
       setIsFilterDropdownOpen(false);
     } else {
       // Handle custom filters
-      setActiveCustomFilters(filter.conditions);
+      const normalizedConditions = filter.conditions.map<FilterCondition>((condition, index) => ({
+        id: condition.id ?? `${filter.name}-${index}`,
+        field: condition.field,
+        operator: condition.operator,
+        value: condition.value,
+      }));
+      setActiveCustomFilters(normalizedConditions);
       setActiveFilterName(filter.name);
-      applyCustomFilters(filter.conditions);
+      applyCustomFilters(normalizedConditions);
       setIsFilterDropdownOpen(false);
     }
   };
@@ -1158,7 +1165,7 @@ export default function ActivitiesList() {
           { field: 'date', label: 'Date', type: 'date' },
           { field: 'notes', label: 'Notes', type: 'text' },
         ]}
-        selectedActivities={data?.content?.filter(a => selectedActivities.has(a.id)) || []}
+        selectedPersons={data?.content?.filter(a => selectedActivities.has(a.id)) || []}
       />
 
       {/* Date Range Picker Modal */}
