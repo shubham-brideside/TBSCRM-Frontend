@@ -308,24 +308,6 @@
   background: #c82333;
 }
 
-.logout-button {
-  padding: 8px 16px;
-  border: 1px solid #cdebd8;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #245c37;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.logout-button:hover {
-  background: #f6fff9;
-  color: #1f6f3e;
-  box-shadow: 0 2px 6px rgba(36, 92, 55, 0.12);
-}
-
 .persons-table td {
   padding: 12px;
   border-bottom: 1px solid #dee2e6;

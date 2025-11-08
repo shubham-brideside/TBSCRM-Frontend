@@ -709,7 +709,6 @@ export default function PersonsList() {
             </>
           )}
         </div>
-        <button className="logout-button" onClick={handleLogout}>Logout</button>
         </div>
       </header>
 

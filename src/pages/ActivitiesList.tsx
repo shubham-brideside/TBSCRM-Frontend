@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { activitiesApi, type Activity, type PageResponse } from '../services/activities';
 import { clearAuthSession } from '../utils/authToken';
 
@@ -31,7 +31,7 @@ export default function ActivitiesList() {
     <div style={{ padding: 16 }}>
       <h2>Activities</h2>
       <div style={{ marginBottom: 12 }}>
-        <a href="/">Persons</a> | <strong>Activities</strong>
+        <Link to="/">Persons</Link> | <strong>Activities</strong> | <Link to="/pipelines">Pipelines</Link>
       </div>
       <table className="table">
         <thead>

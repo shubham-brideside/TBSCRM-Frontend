@@ -1,0 +1,48 @@
+.users-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.users-header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: #1f3a2d;
+}
+
+.users-header p {
+  margin: 8px 0 0;
+  color: #4a5d50;
+}
+
+.users-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+}
+
+.users-empty-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(205, 235, 216, 0.6);
+  padding: 36px;
+  max-width: 540px;
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.users-empty-card h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  color: #1f3a2d;
+}
+
+.users-empty-card p {
+  margin: 0;
+  color: #4a5d50;
+  line-height: 1.6;
+}
+
+
