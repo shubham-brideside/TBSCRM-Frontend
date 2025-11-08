@@ -22,12 +22,13 @@ export default function Login() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    const existingToken = getStoredToken();
-    if (existingToken) {
-      navigate('/');
-    }
-  }, [navigate]);
+  // Removed auto-redirect to allow direct access to login page
+  // useEffect(() => {
+  //   const existingToken = getStoredToken();
+  //   if (existingToken) {
+  //     navigate('/');
+  //   }
+  // }, [navigate]);
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();

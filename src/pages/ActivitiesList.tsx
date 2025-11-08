@@ -144,11 +144,21 @@ export default function ActivitiesList() {
 
   const loadActivities = (customFilters?: ActivityFilters) => {
     setLoading(true);
+    setError(null); // Clear any previous errors
     const filtersToUse = customFilters || filters;
+    const filtersWithCategory = { ...filtersToUse, category };
+    console.log('Loading activities with filters:', filtersWithCategory);
     activitiesApi
-      .list({ ...filtersToUse, category })
-      .then(setData)
-      .catch((e) => setError(e?.message ?? 'Failed to load'))
+      .list(filtersWithCategory)
+      .then((data) => {
+        console.log('Activities loaded:', data.content?.length || 0, 'items');
+        setData(data);
+      })
+      .catch((e) => {
+        console.error('Failed to load activities:', e);
+        setError(e?.message ?? 'Failed to load');
+        setData(null); // Clear data on error
+      })
       .finally(() => setLoading(false));
   };
 
@@ -256,42 +266,40 @@ export default function ActivitiesList() {
     const nextWeekEnd = new Date(nextWeekStart);
     nextWeekEnd.setDate(nextWeekStart.getDate() + 6); // End of next week
 
-    let newFilters: ActivityFilters = { page: 0, size: 25 };
+    let newFilters: ActivityFilters;
 
     if (tab === 'Today') {
       const todayStr = formatDateYYYYMMDD(today);
-      newFilters.dateFrom = todayStr;
-      newFilters.dateTo = todayStr;
+      newFilters = { page: 0, size: 25, category, dateFrom: todayStr, dateTo: todayStr };
     } else if (tab === 'Tomorrow') {
       const tomorrowStr = formatDateYYYYMMDD(tomorrow);
-      newFilters.dateFrom = tomorrowStr;
-      newFilters.dateTo = tomorrowStr;
+      newFilters = { page: 0, size: 25, category, dateFrom: tomorrowStr, dateTo: tomorrowStr };
     } else if (tab === 'Overdue') {
       const yesterday = new Date(today);
       yesterday.setDate(today.getDate() - 1);
       const yesterdayStr = formatDateYYYYMMDD(yesterday);
-      newFilters.dateTo = yesterdayStr;
-      newFilters.done = false;
+      newFilters = { page: 0, size: 25, category, dateTo: yesterdayStr, done: false };
     } else if (tab === 'This week') {
       const weekStartStr = formatDateYYYYMMDD(weekStart);
       const weekEndStr = formatDateYYYYMMDD(weekEnd);
-      newFilters.dateFrom = weekStartStr;
-      newFilters.dateTo = weekEndStr;
+      newFilters = { page: 0, size: 25, category, dateFrom: weekStartStr, dateTo: weekEndStr };
     } else if (tab === 'Next week') {
       const nextWeekStartStr = formatDateYYYYMMDD(nextWeekStart);
       const nextWeekEndStr = formatDateYYYYMMDD(nextWeekEnd);
-      newFilters.dateFrom = nextWeekStartStr;
-      newFilters.dateTo = nextWeekEndStr;
+      newFilters = { page: 0, size: 25, category, dateFrom: nextWeekStartStr, dateTo: nextWeekEndStr };
     } else if (tab === 'All') {
-      // Clear date filters for "All"
-      newFilters = { page: 0, size: 25 };
+      // Clear date filters for "All" but keep category
+      newFilters = { page: 0, size: 25, category };
     } else if (tab === 'To‑do') {
       // To-do: not done activities
-      newFilters.done = false;
+      newFilters = { page: 0, size: 25, category, done: false };
+    } else {
+      // Default fallback
+      newFilters = { page: 0, size: 25, category };
     }
 
     setFilters(newFilters);
-  }, [tab]);
+  }, [tab, category]);
 
   const handleSelectFilter = (filter: { name: string; conditions: FilterCondition[]; isSystem?: boolean }) => {
     if (filter.isSystem) {
@@ -510,66 +518,19 @@ export default function ActivitiesList() {
   };
 
   const shouldShow = (a: Activity) => {
-    const ed = effectiveDate(a);
-    
-    // "All" tab shows everything
+    // "All" tab shows everything - rely on backend
     if (tab === 'All') return true;
     
-    // "To-do" tab shows all activities that are not done
+    // "To-do" tab shows all activities that are not done - client-side filter needed
     if (tab === 'To‑do') return !a.done;
     
-    // For date-based tabs, we need the activity to have a date
-    if (!ed) {
-      // Activities without dates don't show in date-specific tabs
-      if (tab === 'Today' || tab === 'Tomorrow' || tab === 'Overdue' || tab === 'This week' || tab === 'Next week' || tab === 'Select period' || tab === 'Select Date') {
-        return false;
-      }
-      return true;
-    }
-    
-    // "Today" tab: only show activities with date = today
-    if (tab === 'Today') {
-      return ed.getTime() === today.getTime();
-    }
-    
-    // "Tomorrow" tab: only show activities with date = tomorrow
-    if (tab === 'Tomorrow') {
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
-      return ed.getTime() === tomorrow.getTime();
-    }
-    
-    // "Overdue" tab: only show activities with date < today AND not done
-    if (tab === 'Overdue') {
-      return ed.getTime() < today.getTime() && !a.done;
-    }
-    
-    // "This week" tab: show activities within this week (Sunday to Saturday)
-    if (tab === 'This week') {
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6); // End of week (Saturday)
-      weekEnd.setHours(23, 59, 59, 999);
-      return ed.getTime() >= weekStart.getTime() && ed.getTime() <= weekEnd.getTime();
-    }
-    
-    // "Next week" tab: show activities within next week
-    if (tab === 'Next week') {
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - today.getDay()); // Start of current week
-      const nextWeekStart = new Date(weekStart);
-      nextWeekStart.setDate(weekStart.getDate() + 7); // Start of next week
-      const nextWeekEnd = new Date(nextWeekStart);
-      nextWeekEnd.setDate(nextWeekStart.getDate() + 6); // End of next week
-      nextWeekEnd.setHours(23, 59, 59, 999);
-      return ed.getTime() >= nextWeekStart.getTime() && ed.getTime() <= nextWeekEnd.getTime();
-    }
-    
-    // "Select period" and "Select Date": rely on backend filtering
-    // The backend filters by dateFrom/dateTo, so show all results from API
-    if (tab === 'Select period' || tab === 'Select Date') {
-      return true;
+    // For all date-based tabs (Today, Tomorrow, Overdue, This week, Next week, Select period, Select Date),
+    // rely entirely on backend filtering since filters are already set with correct date ranges
+    // The backend API handles the date filtering, so we just show all results returned
+    if (tab === 'Today' || tab === 'Tomorrow' || tab === 'Overdue' || 
+        tab === 'This week' || tab === 'Next week' || 
+        tab === 'Select period' || tab === 'Select Date') {
+      return true; // Backend already filtered by date range
     }
     
     return true;

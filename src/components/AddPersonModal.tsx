@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { personsApi } from '../services/api';
 import { activitiesApi } from '../services/activities';
 import type { Person } from '../types/person';
+import ActivityModal, { type ActivityFormValues } from './ActivityModal';
 import './AddPersonModal.css';
 
 interface AddPersonModalProps {
@@ -54,15 +55,6 @@ export default function AddPersonModal({
   const [showCustomizeFields, setShowCustomizeFields] = useState(false);
   const [showAddCustomField, setShowAddCustomField] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [activityData, setActivityData] = useState({
-    subject: 'Follow up',
-    date: '',
-    startTime: '',
-    endTime: '',
-    priority: 'Priority',
-    notes: '',
-    assignedUser: '',
-  });
   const [showCallModal, setShowCallModal] = useState(false);
   const [callData, setCallData] = useState({
     callType: '',
@@ -1284,157 +1276,62 @@ export default function AddPersonModal({
       )}
 
       {/* Schedule Activity Modal */}
-      {showActivityModal && (
-        <div className="customize-fields-overlay" onClick={() => setShowActivityModal(false)}>
-          <div className="add-person-field-modal" onClick={e => e.stopPropagation()}>
-            <div className="add-person-field-header">
-              <h2>Schedule activity</h2>
-              <button className="close-button" onClick={() => setShowActivityModal(false)}>×</button>
-            </div>
-            <div className="add-person-field-content" style={{ gap: 16 }}>
-              <div style={{ display: 'grid', gap: 12, flex: 1 }}>
-                <input
-                  className="field-input"
-                  placeholder="Subject"
-                  value={activityData.subject}
-                  onChange={e => setActivityData(prev => ({ ...prev, subject: e.target.value }))}
-                />
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <input
-                    type="date"
-                    className="field-input"
-                    value={activityData.date}
-                    onChange={e => setActivityData(prev => ({ ...prev, date: e.target.value }))}
-                  />
-                  <input
-                    type="time"
-                    className="field-input"
-                    value={activityData.startTime}
-                    onChange={e => setActivityData(prev => ({ ...prev, startTime: e.target.value }))}
-                  />
-                  <input
-                    type="time"
-                    className="field-input"
-                    value={activityData.endTime}
-                    onChange={e => setActivityData(prev => ({ ...prev, endTime: e.target.value }))}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <select
-                    className="field-input"
-                    value={activityData.priority}
-                    onChange={e => setActivityData(prev => ({ ...prev, priority: e.target.value }))}
-                  >
-                    <option value="Priority">Priority</option>
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                  </select>
-                  <select
-                    className="field-input"
-                    value={activityData.assignedUser}
-                    onChange={e => setActivityData(prev => ({ ...prev, assignedUser: e.target.value }))}
-                  >
-                    <option value="">Assigned user</option>
-                    {(filterMeta?.managers || []).map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-                <textarea
-                  className="field-input"
-                  rows={5}
-                  placeholder="Notes (not visible to event guests)"
-                  value={activityData.notes}
-                  onChange={e => setActivityData(prev => ({ ...prev, notes: e.target.value }))}
-                />
-                <div style={{ display: 'grid', gap: 8 }}>
-                  <div><strong>Person</strong>: {formData.name || '-'}</div>
-                  <div><strong>Organization</strong>: {formData.organization || '-'}</div>
-                </div>
-              </div>
-            </div>
-            <div className="add-person-field-footer">
-              <div />
-              <div className="footer-right">
-                <button className="cancel-button" onClick={() => setShowActivityModal(false)}>Cancel</button>
-                <button className="save-button" onClick={async () => {
-                  if (!formData.id) {
-                    alert('Please save the person first before creating an activity.');
-                    return;
-                  }
-                  
-                  try {
-                    // Format date from yyyy-MM-dd to dd/MM/yyyy if needed
-                    let formattedDate = activityData.date;
-                    if (activityData.date && activityData.date.includes('-')) {
-                      const [y, m, d] = activityData.date.split('-');
-                      formattedDate = `${d}/${m}/${y}`;
-                    }
-                    
-                    // Default to today if no date provided
-                    if (!formattedDate) {
-                      const today = new Date();
-                      const dd = String(today.getDate()).padStart(2, '0');
-                      const mm = String(today.getMonth() + 1).padStart(2, '0');
-                      const yyyy = today.getFullYear();
-                      formattedDate = `${dd}/${mm}/${yyyy}`;
-                    }
-                    
-                    // Create deal from person name + organization
-                    let deal = formData.name || '';
-                    if (formData.organization) {
-                      deal = `${deal} + ${formData.organization}`;
-                    }
-                    
-                    // Create activity via API
-                    await activitiesApi.create({
-                      subject: activityData.subject || 'Follow up',
-                      date: formattedDate,
-                      startTime: activityData.startTime || undefined,
-                      endTime: activityData.endTime || undefined,
-                      priority: activityData.priority === 'Priority' ? undefined : activityData.priority,
-                      assignedUser: activityData.assignedUser || undefined,
-                      notes: activityData.notes || undefined,
-                      personId: formData.id,
-                      category: 'Activity',
-                      organization: formData.organization || undefined,
-                      deal: deal || undefined,
-                    } as any);
-                    
-                    // Also add to local state for immediate UI update
-                    const item = {
-                      id: Date.now(),
-                      type: 'activity' as const,
-                      subject: activityData.subject || 'Activity',
-                      date: formattedDate,
-                      time: activityData.startTime,
-                      assignedUser: activityData.assignedUser,
-                      status: 'open' as const,
-                    };
-                    addItem(item);
-                    setShowActivityModal(false);
-                    
-                    // Reset activity form
-                    setActivityData({
-                      subject: 'Follow up',
-                      date: '',
-                      startTime: '',
-                      endTime: '',
-                      priority: 'Priority',
-                      notes: '',
-                      assignedUser: '',
-                    });
-                  } catch (error: any) {
-                    console.error('Failed to create activity:', error);
-                    alert(`Failed to create activity: ${error?.response?.data?.message || error?.message || 'Unknown error'}`);
-                  }
-                }}>Save</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ActivityModal
+        isOpen={showActivityModal}
+        onClose={() => setShowActivityModal(false)}
+        managers={filterMeta?.managers}
+        onSave={async (values: ActivityFormValues) => {
+          if (!formData.id) {
+            alert('Please save the person first before creating an activity.');
+            return;
+          }
+          
+          try {
+            let formattedDate = values.date;
+            if (!formattedDate) {
+              const today = new Date();
+              const dd = String(today.getDate()).padStart(2, '0');
+              const mm = String(today.getMonth() + 1).padStart(2, '0');
+              const yyyy = today.getFullYear();
+              formattedDate = `${dd}/${mm}/${yyyy}`;
+            }
+            
+            let deal = formData.name || '';
+            if (formData.organization) {
+              deal = `${deal} + ${formData.organization}`;
+            }
+            
+            await activitiesApi.create({
+              subject: values.subject || 'Follow up',
+              date: formattedDate,
+              startTime: values.startTime || undefined,
+              endTime: values.endTime || undefined,
+              priority: values.priority || undefined,
+              assignedUser: values.assignedUser || undefined,
+              notes: values.notes || undefined,
+              personId: formData.id,
+              category: 'Activity',
+              organization: values.organization || formData.organization || undefined,
+              deal: deal || undefined,
+            } as any);
+            
+            const item = {
+              id: Date.now(),
+              type: 'activity' as const,
+              subject: values.subject || 'Activity',
+              date: formattedDate,
+              time: values.startTime,
+              assignedUser: values.assignedUser,
+              status: 'open' as const,
+            };
+            addItem(item);
+            setShowActivityModal(false);
+          } catch (error: any) {
+            console.error('Failed to create activity:', error);
+            alert(`Failed to create activity: ${error?.response?.data?.message || error?.message || 'Unknown error'}`);
+          }
+        }}
+      />
 
       {/* Add Person Field Modal */}
       {showAddCustomField && (

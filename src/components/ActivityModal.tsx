@@ -20,10 +20,12 @@ export default function ActivityModal({
   isOpen,
   onClose,
   onSave,
+  managers,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSave: (values: ActivityFormValues) => Promise<void> | void;
+  managers?: string[];
 }) {
   const [values, setValues] = useState<ActivityFormValues>({ subject: '' });
   const update = (k: keyof ActivityFormValues, v: string | number) => {
@@ -89,7 +91,16 @@ export default function ActivityModal({
               <option value="Medium">Medium</option>
               <option value="High">High</option>
             </select>
-            <input className="am-input" placeholder="Assigned user" value={values.assignedUser || ''} onChange={(e) => update('assignedUser', e.target.value)} />
+            {managers && managers.length > 0 ? (
+              <select className="am-input" value={values.assignedUser || ''} onChange={(e) => update('assignedUser', e.target.value)}>
+                <option value="">Assigned user</option>
+                {managers.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            ) : (
+              <input className="am-input" placeholder="Assigned user" value={values.assignedUser || ''} onChange={(e) => update('assignedUser', e.target.value)} />
+            )}
           </div>
 
           <textarea className="am-textarea" placeholder="Notes (not visible to event guests)" value={values.notes || ''} onChange={(e) => update('notes', e.target.value)} />
