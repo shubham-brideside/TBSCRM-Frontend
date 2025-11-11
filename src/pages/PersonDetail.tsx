@@ -71,14 +71,18 @@ export default function PersonDetail() {
           </div>
 
           <div className="detail-section">
-            <h2>Wedding Details</h2>
+            <h2>Lead Details</h2>
             <div className="detail-item">
-              <span className="detail-label">Wedding Date:</span>
-              <span className="detail-value">{person.weddingDate || 'N/A'}</span>
+              <span className="detail-label">Lead Date:</span>
+              <span className="detail-value">{person.leadDate || 'N/A'}</span>
             </div>
             <div className="detail-item">
-              <span className="detail-label">Venue:</span>
-              <span className="detail-value">{person.venue || 'N/A'}</span>
+              <span className="detail-label">Label:</span>
+              <span className="detail-value">{person.label || 'N/A'}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Email:</span>
+              <span className="detail-value">{person.email || 'N/A'}</span>
             </div>
           </div>
 
@@ -90,11 +94,11 @@ export default function PersonDetail() {
             </div>
             <div className="detail-item">
               <span className="detail-label">Organization:</span>
-              <span className="detail-value">{person.organization || 'N/A'}</span>
+              <span className="detail-value">{person.organizationName || person.organization || 'N/A'}</span>
             </div>
             <div className="detail-item">
-              <span className="detail-label">Manager:</span>
-              <span className="detail-value">{person.manager || 'N/A'}</span>
+              <span className="detail-label">Owner:</span>
+              <span className="detail-value">{person.ownerDisplayName || person.ownerEmail || person.manager || 'N/A'}</span>
             </div>
             <div className="detail-item">
               <span className="detail-label">Source:</span>
@@ -113,12 +117,12 @@ export default function PersonDetail() {
           <div className="detail-section">
             <h2>Additional Info</h2>
             <div className="detail-item">
-              <span className="detail-label">Created Date:</span>
-              <span className="detail-value">{person.createdDate || 'N/A'}</span>
+              <span className="detail-label">Created At:</span>
+              <span className="detail-value">{person.createdAt || person.createdDate || 'N/A'}</span>
             </div>
             <div className="detail-item">
-              <span className="detail-label">Event Type:</span>
-              <span className="detail-value">{person.eventType || 'N/A'}</span>
+              <span className="detail-label">Updated At:</span>
+              <span className="detail-value">{person.updatedAt || 'N/A'}</span>
             </div>
           </div>
         </div>

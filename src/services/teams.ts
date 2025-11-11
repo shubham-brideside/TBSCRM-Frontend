@@ -1,10 +1,16 @@
 import axios from 'axios';
-import type { Organization, OrganizationOwner, OrganizationRequest } from '../types/organization';
+import type {
+  Team,
+  TeamManagerOption,
+  TeamMemberOption,
+  TeamRequest,
+  TeamUpdateRequest,
+} from '../types/team';
 import { getStoredToken, logoutAndRedirect } from '../utils/authToken';
 import { withApiBase } from '../config/api';
 
 const api = axios.create({
-  baseURL: withApiBase('/api/organizations'),
+  baseURL: withApiBase('/api/teams'),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -35,34 +41,39 @@ const unwrap = <T,>(payload: any): T => {
   return payload as T;
 };
 
-export const organizationsApi = {
-  list: async (): Promise<Organization[]> => {
+export const teamsApi = {
+  list: async (): Promise<Team[]> => {
     const response = await api.get('');
-    return unwrap<Organization[]>(response.data);
+    return unwrap<Team[]>(response.data);
   },
 
-  listOwners: async (): Promise<OrganizationOwner[]> => {
-    const response = await api.get('/owners');
-    return unwrap<OrganizationOwner[]>(response.data);
-  },
-
-  get: async (id: number): Promise<Organization> => {
+  get: async (id: number): Promise<Team> => {
     const response = await api.get(`/${id}`);
-    return unwrap<Organization>(response.data);
+    return unwrap<Team>(response.data);
   },
 
-  create: async (payload: OrganizationRequest): Promise<Organization> => {
+  create: async (payload: TeamRequest): Promise<Team> => {
     const response = await api.post('', payload);
-    return unwrap<Organization>(response.data);
+    return unwrap<Team>(response.data);
   },
 
-  update: async (id: number, payload: OrganizationRequest): Promise<Organization> => {
+  update: async (id: number, payload: TeamUpdateRequest): Promise<Team> => {
     const response = await api.put(`/${id}`, payload);
-    return unwrap<Organization>(response.data);
+    return unwrap<Team>(response.data);
   },
 
   remove: async (id: number): Promise<void> => {
     await api.delete(`/${id}`);
+  },
+
+  listManagers: async (): Promise<TeamManagerOption[]> => {
+    const response = await api.get('/managers');
+    return unwrap<TeamManagerOption[]>(response.data);
+  },
+
+  listMembers: async (): Promise<TeamMemberOption[]> => {
+    const response = await api.get('/members');
+    return unwrap<TeamMemberOption[]>(response.data);
   },
 };
 

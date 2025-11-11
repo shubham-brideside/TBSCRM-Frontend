@@ -25,22 +25,37 @@ const formatDateFromInput = (yyyyMMdd: string): string => {
   return `${d}/${m}/${y}`;
 };
 
-// Calculate days difference between today and wedding date
-const calculateDaysAway = (weddingDate?: string | null): number | null => {
-  if (!weddingDate) return null;
-  
-  const parts = weddingDate.split('/');
-  if (parts.length !== 3) return null;
-  
-  const [d, m, y] = parts;
-  const weddingDateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+// Calculate days difference between today and the provided date
+const calculateDaysAway = (dateValue?: string | null): number | null => {
+  if (!dateValue) return null;
+
+  let targetDate: Date | null = null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+    targetDate = new Date(dateValue);
+  } else if (dateValue.includes('/')) {
+    const parts = dateValue.split('/');
+    if (parts.length === 3) {
+      const [d, m, y] = parts;
+      targetDate = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+    }
+  } else {
+    const parsed = new Date(dateValue);
+    if (!Number.isNaN(parsed.getTime())) {
+      targetDate = parsed;
+    }
+  }
+
+  if (!targetDate || Number.isNaN(targetDate.getTime())) {
+    return null;
+  }
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  weddingDateObj.setHours(0, 0, 0, 0);
-  
-  const diffTime = weddingDateObj.getTime() - today.getTime();
+  targetDate.setHours(0, 0, 0, 0);
+
+  const diffTime = targetDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   return diffDays;
 };
 
@@ -86,13 +101,13 @@ export default function PersonsList() {
   const [isAddCustomOpen, setIsAddCustomOpen] = useState(false);
   const [newField, setNewField] = useState<{ name: string; type: 'text' | 'date' | 'select' | '' }>({ name: '', type: '' });
   // Draggable column order (excludes the checkbox column)
-  const defaultColumnsOrder = ['name','instagramId','source','phone','category','organization','manager','weddingDate','venue'];
+  const defaultColumnsOrder = ['name','instagramId','source','phone','label','organization','manager','leadDate'];
   const [columnOrder, setColumnOrder] = useState<string[]>(defaultColumnsOrder);
   const [draggingColumn, setDraggingColumn] = useState<string | null>(null);
 
   const normalizeConditionValue = (field: string, value: string): string => {
     if (!value) return value;
-    const needsDateFormat = ['weddingDate', 'dateFrom', 'dateTo', 'createdDate'].includes(field);
+    const needsDateFormat = ['leadDate', 'dateFrom', 'dateTo', 'createdDate'].includes(field);
     if (needsDateFormat && value.includes('-')) {
       return formatDateFromInput(value);
     }
@@ -231,11 +246,17 @@ export default function PersonsList() {
         case 'manager':
           if (condition.operator === 'equals') customFilters.manager = value;
           break;
-        case 'weddingVenue':
-          if (condition.operator === 'equals') customFilters.weddingVenue = value;
+        case 'label':
+          if (condition.operator === 'equals') customFilters.label = value;
           break;
-        case 'weddingDate':
-          if (condition.operator === 'equals') customFilters.weddingDate = value;
+        case 'source':
+          if (condition.operator === 'equals') customFilters.source = value;
+          break;
+        case 'leadDate':
+          if (condition.operator === 'equals') {
+            customFilters.leadFrom = value;
+            customFilters.leadTo = value;
+          }
           break;
         case 'dateFrom':
           customFilters.dateFrom = value;
@@ -301,11 +322,15 @@ export default function PersonsList() {
           case 'manager':
             if (next.manager === value) delete next.manager;
             break;
-          case 'weddingVenue':
-            if (next.weddingVenue === value) delete next.weddingVenue;
+          case 'label':
+            if (next.label === value) delete next.label;
             break;
-          case 'weddingDate':
-            if (next.weddingDate === value) delete next.weddingDate;
+          case 'source':
+            if (next.source === value) delete next.source;
+            break;
+          case 'leadDate':
+            if (next.leadFrom === value) delete next.leadFrom;
+            if (next.leadTo === value) delete next.leadTo;
             break;
           case 'dateFrom':
             if (next.dateFrom === value) delete next.dateFrom;
@@ -344,20 +369,22 @@ export default function PersonsList() {
 
   const availableFilterFields = filterMeta ? [
     { value: 'name', label: 'Name', type: 'text' as const },
+    { value: 'label', label: 'Label', type: 'select' as const },
+    { value: 'source', label: 'Source', type: 'select' as const },
     { value: 'category', label: 'Category', type: 'select' as const },
     { value: 'organization', label: 'Organization', type: 'select' as const },
-    { value: 'manager', label: 'Manager', type: 'select' as const },
-    { value: 'weddingVenue', label: 'Wedding Venue', type: 'select' as const },
-    { value: 'weddingDate', label: 'Wedding Date', type: 'date' as const },
+    { value: 'manager', label: 'Owner', type: 'select' as const },
+    { value: 'leadDate', label: 'Lead Date', type: 'date' as const },
     { value: 'phone', label: 'Phone', type: 'text' as const },
     { value: 'instagramId', label: 'Instagram ID', type: 'text' as const },
   ] : [];
 
   const fieldOptions: Record<string, string[]> = filterMeta ? {
+    label: filterMeta.labelOptions?.map(option => option.code) || [],
+    source: filterMeta.sourceOptions?.map(option => option.code) || [],
     category: filterMeta.categories,
     organization: filterMeta.organizations,
     manager: filterMeta.managers,
-    weddingVenue: filterMeta.venues,
   } : {};
 
   const handleAddPerson = () => {
@@ -485,8 +512,8 @@ export default function PersonsList() {
       category: 'Category',
       organization: 'Organization',
       manager: 'Manager',
-      weddingDate: 'Wedding Date',
-      venue: 'Venue',
+      label: 'Label',
+      leadDate: 'Lead Date',
     };
     return columnMap[column] || column;
   };
@@ -643,12 +670,10 @@ export default function PersonsList() {
     { field: 'organization', label: 'Organization', type: 'select' as const, options: filterMeta.organizations },
     { field: 'manager', label: 'Manager', type: 'select' as const, options: filterMeta.managers },
     { field: 'category', label: 'Category', type: 'select' as const, options: filterMeta.categories },
+    { field: 'label', label: 'Label', type: 'select' as const, options: filterMeta.labelOptions?.map(option => option.code) || [] },
     { field: 'instagramId', label: 'Instagram ID', type: 'text' as const },
     { field: 'phone', label: 'Phone', type: 'text' as const },
-    { field: 'weddingDate', label: 'Wedding Date only', type: 'date' as const },
-    { field: 'venue', label: 'Wedding Venue', type: 'text' as const },
-    { field: 'source', label: 'Person Source', type: 'select' as const, options: ['Reference','TBS','Instagram','Direct','Divert','Whatsapp','Mail','Website'] },
-    { field: 'createdDate', label: 'Lead Date', type: 'date' as const },
+    { field: 'source', label: 'Person Source', type: 'select' as const, options: filterMeta.sourceOptions?.map(option => option.code) || [] },
   ] : [];
 
   return (
@@ -795,18 +820,35 @@ export default function PersonsList() {
               </select>
             </div>
 
-            <div className="filter-group">
-              <select
-                value={filters.weddingVenue || ''}
-                onChange={(e) => handleFilterChange('weddingVenue', e.target.value)}
-                className="filter-select"
-              >
-                <option value="">All Venues</option>
-                {filterMeta.venues.map(venue => (
-                  <option key={venue} value={venue}>{venue}</option>
-                ))}
-              </select>
-            </div>
+            {filterMeta.labelOptions && (
+              <div className="filter-group">
+                <select
+                  value={filters.label || ''}
+                  onChange={(e) => handleFilterChange('label', e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="">All Labels</option>
+                  {filterMeta.labelOptions.map(option => (
+                    <option key={option.code} value={option.code}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {filterMeta.sourceOptions && (
+              <div className="filter-group">
+                <select
+                  value={filters.source || ''}
+                  onChange={(e) => handleFilterChange('source', e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="">All Sources</option>
+                  {filterMeta.sourceOptions.map(option => (
+                    <option key={option.code} value={option.code}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </>
         )}
 
@@ -914,22 +956,26 @@ export default function PersonsList() {
                             case 'category': return person.category || '-';
                             case 'organization': return person.organization || '-';
                             case 'manager': return person.manager || '-';
-                            case 'weddingDate': {
-                              const daysAway = calculateDaysAway(person.weddingDate);
-                              if (daysAway === null || !person.weddingDate) {
+                            case 'label': return person.label || '-';
+                            case 'leadDate': {
+                              const leadDate = person.leadDate || person.createdDate;
+                              if (!leadDate) {
                                 return '-';
+                              }
+                              const daysAway = calculateDaysAway(leadDate);
+                              if (daysAway === null) {
+                                return leadDate;
                               }
                               const daysText = formatDaysAway(daysAway);
                               const dateColor = '#333'; // match default table text color
                               const daysColor = '#8b4513'; // Reddish-brown color for days away
                               return (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                  <span style={{ fontSize: '14px', color: dateColor, fontWeight: '500' }}>{person.weddingDate}</span>
+                                  <span style={{ fontSize: '14px', color: dateColor, fontWeight: '500' }}>{leadDate}</span>
                                   <span style={{ fontSize: '14px', color: daysColor }}>{daysText}</span>
                                 </div>
                               );
                             }
-                            case 'venue': return person.venue || '-';
                             default: return '-';
                           }
                         })()}

@@ -1,19 +1,24 @@
 export interface Person {
   id: number;
   name: string;
-  instagramId?: string | null;
-  email?: string | null;
+  organizationId?: number | null;
+  organizationName?: string | null;
+  ownerId?: number | null;
+  ownerDisplayName?: string | null;
+  ownerEmail?: string | null;
   phone?: string | null;
-  weddingDate?: string | null;
-  venue?: string | null;
+  email?: string | null;
+  instagramId?: string | null;
+  leadDate?: string | null;
+  label?: string | null;
+  source?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  // Legacy compatibility fields used across the UI
   organization?: string | null;
   manager?: string | null;
   category?: string | null;
-  source?: string | null;
   createdDate?: string | null;
-  eventType?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
 }
 
 export interface PersonSummary {
@@ -26,10 +31,23 @@ export interface FilterMeta {
   organizations: string[];
   managers: string[];
   venues: string[];
+  labelOptions?: PersonLabelOption[];
+  sourceOptions?: PersonSourceOption[];
+  ownerOptions?: PersonOwner[];
 }
 
 export interface PersonFilters {
   q?: string;
+  label?: string;
+  source?: string;
+  organizationId?: number;
+  ownerId?: number;
+  leadFrom?: string;
+  leadTo?: string;
+  page?: number;
+  size?: number;
+  sort?: string;
+  // Legacy keys used in existing filter UIs
   category?: string;
   organization?: string;
   manager?: string;
@@ -37,9 +55,6 @@ export interface PersonFilters {
   dateTo?: string;
   weddingVenue?: string;
   weddingDate?: string;
-  page?: number;
-  size?: number;
-  sort?: string;
 }
 
 export interface PageResponse<T> {
@@ -59,5 +74,35 @@ export interface PersonFilterCondition {
 export interface SavedPersonFilter {
   name: string;
   conditions: PersonFilterCondition[];
+}
+
+export interface PersonOwner {
+  id: number;
+  firstName?: string | null;
+  lastName?: string | null;
+  email: string;
+  displayName: string;
+}
+
+export interface PersonLabelOption {
+  code: string;
+  label: string;
+}
+
+export interface PersonSourceOption {
+  code: string;
+  label: string;
+}
+
+export interface PersonRequest {
+  name: string;
+  organizationId?: number;
+  ownerId?: number;
+  phone?: string;
+  email?: string;
+  instagramId?: string;
+  leadDate?: string;
+  label?: string;
+  source?: string;
 }
 

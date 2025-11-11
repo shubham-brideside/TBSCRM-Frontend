@@ -6,24 +6,28 @@ export interface Stage {
   probability?: number | null;
   color?: string | null;
   active: boolean;
-  rottenFlag?: boolean | null;
-  rottenDays?: number | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+}
+
+export interface PipelineOrganization {
+  id: number;
+  name: string;
+}
+
+export interface PipelineTeam {
+  id: number;
+  name: string;
 }
 
 export interface Pipeline {
   id: number;
   name: string;
   category?: string | null;
-  team?: string | null;
-  organization?: string | null;
-  description?: string | null;
-  active: boolean;
-  dealProbabilityEnabled?: boolean | null;
-  displayOrder?: number | null;
-  ownerUserId?: number | null;
-  ownerName?: string | null;
+  teamId?: number | null;
+  team?: PipelineTeam | null;
+  organization?: PipelineOrganization | null;
+  isDeleted?: boolean;
   stages: Stage[];
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -34,8 +38,6 @@ export interface StageRequest {
   order?: number;
   active?: boolean;
   probability?: number | null;
-  rottenFlag?: boolean;
-  rottenDays?: number;
 }
 
 export interface StageUpdateRequest {
@@ -43,8 +45,6 @@ export interface StageUpdateRequest {
   order?: number;
   active?: boolean;
   probability?: number | null;
-  rottenFlag?: boolean;
-  rottenDays?: number;
 }
 
 export interface StageOrderRequest {
@@ -54,16 +54,14 @@ export interface StageOrderRequest {
 export interface PipelineRequest {
   name: string;
   category?: string | null;
-  team?: string | null;
-  organization?: string | null;
-  description?: string | null;
-  active?: boolean;
-  dealProbabilityEnabled?: boolean;
-  displayOrder?: number;
-  ownerUserId?: number;
+  teamId?: number | null;
+  organizationId?: number | null;
 }
 
-export interface PipelineUpdateRequest extends Partial<PipelineRequest> {}
-
-
-
+export interface PipelineUpdateRequest {
+  name?: string;
+  category?: string | null;
+  teamId?: number | null;
+  organizationId?: number | null;
+  deleted?: boolean;
+}

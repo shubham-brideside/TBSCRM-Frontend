@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import StageModal from '../components/StageModal';
 import PipelineModal from '../components/PipelineModal';
 import { pipelinesApi } from '../services/pipelines';
-import type { Pipeline, PipelineRequest, Stage } from '../types/pipeline';
+import type { Pipeline, PipelineRequest, PipelineUpdateRequest, Stage, StageRequest } from '../types/pipeline';
 import './Pipelines.css';
-import { clearAuthSession } from '../utils/authToken';
+import { logoutAndRedirect } from '../utils/authToken';
 
 type StageModalState =
   | { mode: 'create'; pipeline: Pipeline }
@@ -32,14 +32,20 @@ export default function Pipelines() {
     [pipelines],
   );
 
+  const categoryOptions = useMemo(() => {
+    const unique = new Set<string>();
+    pipelines.forEach((pipeline) => {
+      const category = pipeline.category?.trim();
+      if (category) {
+        unique.add(category);
+      }
+    });
+    return Array.from(unique).sort((a, b) => a.localeCompare(b));
+  }, [pipelines]);
+
   useEffect(() => {
     void loadPipelines();
   }, []);
-
-  const handleAuthRedirect = () => {
-    clearAuthSession();
-    window.location.href = '/login';
-  };
 
   const loadPipelines = async () => {
     setLoading(true);
@@ -48,12 +54,11 @@ export default function Pipelines() {
       const data = await pipelinesApi.list({ includeStages: true });
       setPipelines(data);
     } catch (err: any) {
-      if (err?.response?.status === 401) {
-        handleAuthRedirect();
-        return;
-      }
       const message = err?.response?.data?.message || err?.message || 'Failed to load pipelines.';
       setError(message);
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        logoutAndRedirect();
+      }
     } finally {
       setLoading(false);
     }
@@ -66,23 +71,35 @@ export default function Pipelines() {
       setPipelines(data);
       setError(null);
     } catch (err: any) {
-      if (err?.response?.status === 401) {
-        handleAuthRedirect();
-        return;
-      }
       const message = err?.response?.data?.message || err?.message || 'Failed to refresh pipelines.';
       setError(message);
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        logoutAndRedirect();
+      }
     } finally {
       setRefreshing(false);
     }
   };
 
-  const handlePipelineSubmit = async (values: PipelineRequest) => {
+  const handlePipelineSubmit = async (values: PipelineRequest | PipelineUpdateRequest) => {
     if (!pipelineModal) return;
     if (pipelineModal.mode === 'create') {
-      await pipelinesApi.create(values);
+      const createPayload: PipelineRequest = {
+        name: values.name ?? '',
+        category: values.category,
+        teamId: values.teamId,
+        organizationId: values.organizationId,
+      };
+      await pipelinesApi.create(createPayload);
     } else {
-      await pipelinesApi.update(pipelineModal.pipeline.id, values);
+      const updatePayload: PipelineUpdateRequest = {
+        name: values.name,
+        category: values.category,
+        teamId: values.teamId,
+        organizationId: values.organizationId,
+        deleted: (values as PipelineUpdateRequest).deleted,
+      };
+      await pipelinesApi.update(pipelineModal.pipeline.id, updatePayload);
     }
     await refreshPipelines();
   };
@@ -94,30 +111,34 @@ export default function Pipelines() {
       await pipelinesApi.delete(pipeline.id, hardDelete ? true : undefined);
       await refreshPipelines();
     } catch (err: any) {
-      if (err?.response?.status === 401) {
-        handleAuthRedirect();
-        return;
-      }
       const message = err?.response?.data?.message || err?.message || 'Failed to delete pipeline.';
       setError(message);
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        logoutAndRedirect();
+      }
     }
   };
 
-  const togglePipelineActive = async (pipeline: Pipeline) => {
+  const togglePipelineDeleted = async (pipeline: Pipeline) => {
+    const isArchived = pipeline.isDeleted ?? false;
     try {
-      await pipelinesApi.update(pipeline.id, { active: !pipeline.active });
+      if (isArchived) {
+        await pipelinesApi.update(pipeline.id, { deleted: false });
+      } else {
+        await pipelinesApi.archive(pipeline.id);
+      }
       await refreshPipelines();
     } catch (err: any) {
-      if (err?.response?.status === 401) {
-        handleAuthRedirect();
-        return;
-      }
-      const message = err?.response?.data?.message || err?.message || 'Failed to update pipeline.';
+      const message =
+        err?.response?.data?.message || err?.message || 'Failed to update pipeline.';
       setError(message);
+      if (err?.response?.status === 401) {
+        logoutAndRedirect();
+      }
     }
   };
 
-  const handleStageModalSubmit = async (values: { name: string; order?: number; active: boolean; probability?: number | null; rottenFlag?: boolean; rottenDays?: number }) => {
+  const handleStageModalSubmit = async (values: StageRequest & { active: boolean }) => {
     if (!stageModal) return;
     const { pipeline } = stageModal;
     if (stageModal.mode === 'create') {
@@ -135,12 +156,11 @@ export default function Pipelines() {
       await pipelinesApi.updateStage(pipeline.id, stage.id, { active: !stage.active });
       await refreshPipelines();
     } catch (err: any) {
-      if (err?.response?.status === 401) {
-        handleAuthRedirect();
-        return;
-      }
       const message = err?.response?.data?.message || err?.message || 'Failed to update stage.';
       setError(message);
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        logoutAndRedirect();
+      }
     } finally {
       setBusyStageKey(null);
     }
@@ -163,12 +183,11 @@ export default function Pipelines() {
       });
       await refreshPipelines();
     } catch (err: any) {
-      if (err?.response?.status === 401) {
-        handleAuthRedirect();
-        return;
-      }
       const message = err?.response?.data?.message || err?.message || 'Failed to reorder stages.';
       setError(message);
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        logoutAndRedirect();
+      }
     } finally {
       setBusyStageKey(null);
     }
@@ -185,12 +204,11 @@ export default function Pipelines() {
       await pipelinesApi.deleteStage(pipeline.id, stage.id, hardDelete ? true : undefined);
       await refreshPipelines();
     } catch (err: any) {
-      if (err?.response?.status === 401) {
-        handleAuthRedirect();
-        return;
-      }
       const message = err?.response?.data?.message || err?.message || 'Failed to delete stage.';
       setError(message);
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        logoutAndRedirect();
+      }
     } finally {
       setBusyStageKey(null);
     }
@@ -225,13 +243,12 @@ export default function Pipelines() {
                 <div>
                   <div className="pipeline-card-title">
                     <h2>{pipeline.name}</h2>
-                    {!pipeline.active && <span className="pipeline-badge muted">Inactive</span>}
-                    {pipeline.dealProbabilityEnabled && <span className="pipeline-badge">Probability enabled</span>}
+                    {pipeline.isDeleted && <span className="pipeline-badge muted">Archived</span>}
                   </div>
                   <div className="pipeline-card-meta">
-                    {pipeline.category && <span>{pipeline.category}</span>}
-                    {pipeline.team && <span>Team: {pipeline.team}</span>}
-                    {pipeline.ownerName && <span>Owner: {pipeline.ownerName}</span>}
+                    {pipeline.category && <span>Category: {pipeline.category}</span>}
+                    {pipeline.team?.name && <span>Team: {pipeline.team.name}</span>}
+                    {pipeline.organization?.name && <span>Org: {pipeline.organization.name}</span>}
                   </div>
                   <span className="pipeline-stage-count">
                     {pipeline.stages?.length ?? 0} stage{(pipeline.stages?.length ?? 0) === 1 ? '' : 's'}
@@ -241,6 +258,7 @@ export default function Pipelines() {
                   <button
                     className="pipeline-action"
                     onClick={() => setStageModal({ mode: 'create', pipeline })}
+                    disabled={pipeline.isDeleted}
                   >
                     + Stage
                   </button>
@@ -252,22 +270,18 @@ export default function Pipelines() {
                   </button>
                   <button
                     className="pipeline-action"
-                    onClick={() => togglePipelineActive(pipeline)}
+                    onClick={() => togglePipelineDeleted(pipeline)}
                   >
-                    {pipeline.active ? 'Deactivate' : 'Activate'}
+                    {pipeline.isDeleted ? 'Restore' : 'Archive'}
                   </button>
                   <button
                     className="pipeline-action danger"
                     onClick={() => void deletePipeline(pipeline)}
                   >
-                    Delete
+                    Delete permanently
                   </button>
                 </div>
               </div>
-
-              {pipeline.description && (
-                <p className="pipeline-description">{pipeline.description}</p>
-              )}
 
               <ul className="pipeline-stage-list">
                 {pipeline.stages.length === 0 && (
@@ -290,37 +304,37 @@ export default function Pipelines() {
                         <button
                           className="stage-action-button"
                           onClick={() => moveStage(pipeline, stage, -1)}
-                          disabled={isBusy || index === 0}
-                          title="Move up"
+                          disabled={isBusy || index === 0 || pipeline.isDeleted}
+                          title="Move left"
                         >
-                          ↑
+                          ←
                         </button>
                         <button
                           className="stage-action-button"
                           onClick={() => moveStage(pipeline, stage, 1)}
-                          disabled={isBusy || index === pipeline.stages.length - 1}
-                          title="Move down"
+                          disabled={isBusy || index === pipeline.stages.length - 1 || pipeline.isDeleted}
+                          title="Move right"
                         >
-                          ↓
+                          →
                         </button>
                         <button
                           className="stage-action-button"
                           onClick={() => toggleStageActive(pipeline, stage)}
-                          disabled={isBusy}
+                          disabled={isBusy || pipeline.isDeleted}
                         >
                           {stage.active ? 'Deactivate' : 'Activate'}
                         </button>
                         <button
                           className="stage-action-button"
                           onClick={() => setStageModal({ mode: 'edit', pipeline, stage })}
-                          disabled={isBusy}
+                          disabled={isBusy || pipeline.isDeleted}
                         >
                           Edit
                         </button>
                         <button
                           className="stage-action-button danger"
                           onClick={() => void deleteStage(pipeline, stage)}
-                          disabled={isBusy}
+                          disabled={isBusy || pipeline.isDeleted}
                         >
                           Delete
                         </button>
@@ -352,6 +366,7 @@ export default function Pipelines() {
           pipeline={pipelineModal.mode === 'edit' ? pipelineModal.pipeline : undefined}
           onClose={() => setPipelineModal(null)}
           onSubmit={handlePipelineSubmit}
+          categoryOptions={categoryOptions}
         />
       )}
     </div>

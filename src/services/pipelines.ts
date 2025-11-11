@@ -8,10 +8,11 @@ import {
   type StageRequest,
   type StageUpdateRequest,
 } from '../types/pipeline';
-import { clearAuthSession, getStoredToken } from '../utils/authToken';
+import { getStoredToken, logoutAndRedirect } from '../utils/authToken';
+import { withApiBase } from '../config/api';
 
 const api = axios.create({
-  baseURL: '/api/pipelines',
+  baseURL: withApiBase('/api/pipelines'),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -29,8 +30,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error?.response?.status === 401) {
-      console.warn('Unauthorized (401) when calling pipelines API. Clearing session.');
-      clearAuthSession();
+      console.warn('Unauthorized (401) when calling pipelines API. Logging out.');
+      logoutAndRedirect();
     }
     return Promise.reject(error);
   },
@@ -51,6 +52,11 @@ export const pipelinesApi = {
     };
     const response = await api.get('', { params: query });
     return unwrap<Pipeline[]>(response.data);
+  },
+
+  listCategories: async (): Promise<string[]> => {
+    const response = await api.get('/categories');
+    return unwrap<string[]>(response.data);
   },
 
   get: async (pipelineId: number, includeStages = true): Promise<Pipeline> => {
@@ -74,6 +80,11 @@ export const pipelinesApi = {
     await api.delete(`/${pipelineId}`, {
       params: hard ? { hard } : undefined,
     });
+  },
+
+  archive: async (pipelineId: number): Promise<Pipeline> => {
+    const response = await api.patch(`/${pipelineId}/archive`);
+    return unwrap<Pipeline>(response.data);
   },
 
   createStage: async (pipelineId: number, payload: StageRequest): Promise<Stage> => {

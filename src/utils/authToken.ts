@@ -81,4 +81,37 @@ export const clearAuthSession = (): void => {
   }
 };
 
+let logoutRedirectScheduled = false;
+
+const resolveLoginPath = (): string => {
+  const fallback = '/login';
+  if (typeof window === 'undefined') {
+    return fallback;
+  }
+  const custom = import.meta.env?.VITE_LOGIN_ROUTE;
+  if (typeof custom === 'string' && custom.trim().length > 0) {
+    return custom.trim();
+  }
+  return fallback;
+};
+
+export const logoutAndRedirect = (): void => {
+  clearAuthSession();
+  if (typeof window === 'undefined') {
+    return;
+  }
+  if (logoutRedirectScheduled) {
+    return;
+  }
+  logoutRedirectScheduled = true;
+
+  const loginPath = resolveLoginPath();
+  if (window.location.pathname === loginPath) {
+    window.location.reload();
+    return;
+  }
+
+  window.location.replace(loginPath);
+};
+
 

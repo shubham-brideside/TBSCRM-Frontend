@@ -1,8 +1,9 @@
 import axios from 'axios';
 import type { ApiResponse, LoginRequest, LoginResponse } from '../types/auth';
+import { withApiBase } from '../config/api';
 
 const authClient = axios.create({
-  baseURL: '/api/auth',
+  baseURL: withApiBase('/api/auth'),
   headers: {
     'Content-Type': 'application/json',
   },

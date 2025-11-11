@@ -189,19 +189,24 @@
   padding: 0;
   margin: 0;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
 }
 
 .pipeline-stage-item {
+  flex: 0 0 240px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 16px 18px;
+  border-radius: 16px;
   border: 1px solid #e4efe8;
   background: #f9fffb;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
 }
 
 .pipeline-stage-item.inactive {
@@ -212,7 +217,7 @@
 .pipeline-stage-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .pipeline-stage-name {
@@ -240,8 +245,9 @@
 
 .pipeline-stage-actions {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-start;
 }
 
 .stage-action-button {

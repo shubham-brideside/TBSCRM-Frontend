@@ -2,28 +2,46 @@ import axios from 'axios';
 import {
   type Person,
   type PersonSummary,
-  type FilterMeta,
   type PersonFilters,
   type PageResponse,
   type PersonFilterCondition,
   type SavedPersonFilter,
+  type PersonOwner,
+  type PersonLabelOption,
+  type PersonSourceOption,
+  type PersonRequest,
+  type FilterMeta,
 } from '../types/person';
-import { clearAuthSession, getStoredToken } from '../utils/authToken';
-
-// Use relative path to go through Vite proxy (configured in vite.config.ts)
-const API_BASE_URL = '/api/persons';
+import { getStoredToken, logoutAndRedirect } from '../utils/authToken';
+import { withApiBase } from '../config/api';
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: withApiBase('/api/persons'),
   headers: {
     'Content-Type': 'application/json',
   },
   paramsSerializer: {
-    indexes: null, // Don't use array notation for params
+    indexes: null,
   },
 });
 
-// Attach Authorization header for protected endpoints
+type RawPerson = Person & {
+  organizationName?: string | null;
+  ownerDisplayName?: string | null;
+  leadDate?: string | null;
+  label?: string | null;
+  source?: string | null;
+};
+
+const normalizePerson = (raw: RawPerson): Person => ({
+  ...raw,
+  organization: raw.organizationName ?? raw.organization ?? null,
+  manager: raw.ownerDisplayName ?? raw.manager ?? null,
+  category: raw.label ?? raw.category ?? null,
+  createdDate: raw.leadDate ?? raw.createdDate ?? null,
+  source: raw.source ?? null,
+});
+
 api.interceptors.request.use((config) => {
   const token = getStoredToken();
   if (token) {
@@ -32,98 +50,103 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Basic 401 handler (no redirect logic; backend may provide refresh endpoints)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error?.response?.status === 401) {
-      console.warn('Unauthorized (401) when calling persons API. Clearing session.');
-      clearAuthSession();
+      console.warn('Unauthorized (401) when calling persons API. Logging out.');
+      logoutAndRedirect();
     }
     return Promise.reject(error);
   },
 );
 
+const buildParams = (filters: PersonFilters = {}): Record<string, string> => {
+  const params: Record<string, string> = {};
+  if (filters.q) params.q = filters.q;
+  const label = filters.label || filters.category;
+  if (label) params.label = label;
+  if (filters.source) params.source = filters.source;
+  if (filters.organizationId) params.organizationId = filters.organizationId.toString();
+  if (filters.ownerId) params.ownerId = filters.ownerId.toString();
+  const leadFrom = filters.leadFrom || (filters as any).dateFrom;
+  const leadTo = filters.leadTo || (filters as any).dateTo;
+  if (leadFrom) params.leadFrom = leadFrom;
+  if (leadTo) params.leadTo = leadTo;
+  if (filters.page !== undefined) params.page = filters.page.toString();
+  if (filters.size !== undefined) params.size = filters.size.toString();
+  if (filters.sort) params.sort = filters.sort;
+  return params;
+};
+
+const normalizePage = (response: PageResponse<RawPerson>): PageResponse<Person> => ({
+  ...response,
+  content: response.content.map(normalizePerson),
+});
+
 export const personsApi = {
-  // List persons with filters
   list: async (filters: PersonFilters = {}): Promise<PageResponse<Person>> => {
-    const params: Record<string, string> = {};
-    if (filters.q) params.q = filters.q;
-    if (filters.category) params.category = filters.category;
-    if (filters.organization) params.organization = filters.organization;
-    if (filters.manager) params.manager = filters.manager;
-    if (filters.dateFrom) params.dateFrom = filters.dateFrom;
-    if (filters.dateTo) params.dateTo = filters.dateTo;
-    if (filters.weddingVenue) params.weddingVenue = filters.weddingVenue;
-    if (filters.weddingDate) params.weddingDate = filters.weddingDate;
-    if (filters.page !== undefined) params.page = filters.page.toString();
-    if (filters.size !== undefined) params.size = filters.size.toString();
-    if (filters.sort) params.sort = filters.sort;
-
-    try {
-      const fullUrl = `${API_BASE_URL}?${new URLSearchParams(params).toString()}`;
-      console.log('Fetching persons from:', fullUrl);
-      const response = await api.get<PageResponse<Person>>('', { params });
-      console.log('Persons response received:', response.status);
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching persons:', error);
-      console.error('Request URL:', error.config?.url);
-      console.error('Full URL:', error.config?.baseURL + error.config?.url);
-      throw error;
-    }
+    const response = await api.get<PageResponse<RawPerson>>('', { params: buildParams(filters) });
+    return normalizePage(response.data);
   },
 
-  // Get person by ID
   get: async (id: number): Promise<Person> => {
-    const response = await api.get<Person>(`/${id}`);
-    return response.data;
+    const response = await api.get<RawPerson>(`/${id}`);
+    return normalizePerson(response.data);
   },
 
-  // Get person summary (with deals count)
   getSummary: async (id: number): Promise<PersonSummary> => {
     const response = await api.get<PersonSummary>(`/${id}/summary`);
-    return response.data;
+    return {
+      ...response.data,
+      person: normalizePerson(response.data.person as RawPerson),
+    } as PersonSummary;
   },
 
-  // Create person
-  create: async (person: Partial<Person>): Promise<Person> => {
-    const response = await api.post<Person>('', person);
-    return response.data;
+  create: async (payload: PersonRequest): Promise<Person> => {
+    const response = await api.post<RawPerson>('', payload);
+    return normalizePerson(response.data);
   },
 
-  // Update person
-  update: async (id: number, person: Partial<Person>): Promise<Person> => {
-    const response = await api.put<Person>(`/${id}`, person);
-    return response.data;
+  update: async (id: number, payload: Partial<PersonRequest>): Promise<Person> => {
+    const response = await api.put<RawPerson>(`/${id}`, payload);
+    return normalizePerson(response.data);
   },
 
-  // Delete person
   delete: async (id: number): Promise<void> => {
     await api.delete(`/${id}`);
   },
 
-  // Bulk delete
   bulkDelete: async (ids: number[]): Promise<number> => {
     const params = new URLSearchParams();
-    ids.forEach(id => params.append('ids', id.toString()));
+    ids.forEach((id) => params.append('ids', id.toString()));
     const response = await api.delete<number>(`?${params.toString()}`);
     return response.data;
   },
 
-  // Merge persons
   merge: async (targetId: number, duplicateIds: number[]): Promise<Person> => {
-    const response = await api.post<Person>(`/${targetId}/merge`, { duplicateIds });
-    return response.data;
+    const response = await api.post<RawPerson>(`/${targetId}/merge`, { duplicateIds });
+    return normalizePerson(response.data);
   },
 
-  // Get filter metadata
   getFilters: async (): Promise<FilterMeta> => {
-    const response = await api.get<FilterMeta>('/filters');
-    return response.data;
+    const [labelsResp, sourcesResp, ownersResp] = await Promise.all([
+      api.get<PersonLabelOption[]>('/labels'),
+      api.get<PersonSourceOption[]>('/sources'),
+      api.get<PersonOwner[]>('/owners'),
+    ]);
+
+    return {
+      categories: labelsResp.data.map((option) => option.code),
+      organizations: [],
+      managers: ownersResp.data.map((owner) => owner.displayName || owner.email),
+      venues: [],
+      labelOptions: labelsResp.data,
+      sourceOptions: sourcesResp.data,
+      ownerOptions: ownersResp.data,
+    };
   },
 
-  // Saved filters
   listCustomFilters: async (): Promise<SavedPersonFilter[]> => {
     const response = await api.get<Record<string, PersonFilterCondition[]>>('/custom-filters');
     const map = response.data || {};
@@ -131,10 +154,7 @@ export const personsApi = {
   },
 
   saveCustomFilter: async (name: string, conditions: PersonFilterCondition[]): Promise<void> => {
-    await api.post<void>('/custom-filters', {
-      name,
-      conditions,
-    });
+    await api.post<void>('/custom-filters', { name, conditions });
   },
 
   deleteCustomFilter: async (name: string): Promise<void> => {
@@ -145,23 +165,26 @@ export const personsApi = {
     conditions: PersonFilterCondition[],
     pagination: Pick<PersonFilters, 'page' | 'size' | 'sort'> = {},
   ): Promise<PageResponse<Person>> => {
-    const response = await api.post<PageResponse<Person>>('/apply-filter', {
-      conditions,
-    }, {
-      params: {
-        page: pagination.page,
-        size: pagination.size,
-        sort: pagination.sort,
-      },
-    });
+    const response = await api.post<PageResponse<RawPerson>>(
+      '/apply-filter',
+      { conditions },
+      { params: buildParams(pagination) },
+    );
+    return normalizePage(response.data);
+  },
+
+  listOwners: async (): Promise<PersonOwner[]> => {
+    const response = await api.get<PersonOwner[]>('/owners');
     return response.data;
   },
 
-  // Get managers by category
-  getManagersByCategory: async (category?: string): Promise<string[]> => {
-    const params = category ? `?category=${encodeURIComponent(category)}` : '';
-    const response = await api.get<string[]>(`/managers${params}`);
+  listLabels: async (): Promise<PersonLabelOption[]> => {
+    const response = await api.get<PersonLabelOption[]>('/labels');
+    return response.data;
+  },
+
+  listSources: async (): Promise<PersonSourceOption[]> => {
+    const response = await api.get<PersonSourceOption[]>('/sources');
     return response.data;
   },
 };
-

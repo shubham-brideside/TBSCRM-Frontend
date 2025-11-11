@@ -1,5 +1,10 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import type { Pipeline, PipelineRequest } from '../types/pipeline';
+import type { Pipeline, PipelineRequest, PipelineUpdateRequest } from '../types/pipeline';
+import type { Organization } from '../types/organization';
+import type { Team } from '../types/team';
+import { organizationsApi } from '../services/organizations';
+import { teamsApi } from '../services/teams';
+import { pipelinesApi } from '../services/pipelines';
 import './PipelineModal.css';
 
 interface PipelineModalProps {
@@ -7,19 +12,53 @@ interface PipelineModalProps {
   mode: 'create' | 'edit';
   pipeline?: Pipeline | null;
   onClose: () => void;
-  onSubmit: (payload: PipelineRequest) => Promise<void>;
+  onSubmit: (payload: PipelineRequest | PipelineUpdateRequest) => Promise<void>;
+  categoryOptions?: string[];
 }
 
-const INITIAL_FORM: PipelineRequest = {
+type PipelineFormState = {
+  name: string;
+  category?: string | null;
+  teamId?: number | null;
+  organizationId?: number | null;
+  deleted?: boolean;
+};
+
+const INITIAL_FORM: PipelineFormState = {
   name: '',
   category: '',
-  team: '',
-  organization: '',
-  description: '',
-  active: true,
-  dealProbabilityEnabled: false,
-  displayOrder: undefined,
-  ownerUserId: undefined,
+  teamId: undefined,
+  organizationId: undefined,
+  deleted: false,
+};
+
+const normaliseCategory = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (value && typeof value === 'object') {
+    const source = value as {
+      name?: unknown;
+      category?: unknown;
+      label?: unknown;
+      code?: unknown;
+      value?: unknown;
+    };
+    const candidates: Array<unknown> = [
+      source.label,
+      source.name,
+      source.category,
+      source.value,
+      source.code,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim().length > 0) {
+        return candidate.trim();
+      }
+    }
+  }
+  return null;
 };
 
 export default function PipelineModal({
@@ -28,15 +67,37 @@ export default function PipelineModal({
   pipeline,
   onClose,
   onSubmit,
+  categoryOptions = [],
 }: PipelineModalProps) {
-  const [form, setForm] = useState<PipelineRequest>(INITIAL_FORM);
+  const [form, setForm] = useState<PipelineFormState>(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [organizationsLoading, setOrganizationsLoading] = useState(false);
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   const title = useMemo(
-    () => (mode === 'create' ? 'Create pipeline' : `Edit pipeline`),
+    () => (mode === 'create' ? 'Create pipeline' : 'Edit pipeline'),
     [mode],
   );
+
+  useEffect(() => {
+    if (categoryOptions.length === 0) return;
+    setCategories((prev) => {
+      const unique = new Set<string>(prev);
+      categoryOptions.forEach((item) => {
+        const normalised = normaliseCategory(item);
+        if (normalised) unique.add(normalised);
+      });
+      return Array.from(unique).sort((a, b) => a.localeCompare(b));
+    });
+  }, [categoryOptions]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -50,39 +111,71 @@ export default function PipelineModal({
       setForm({
         name: pipeline.name ?? '',
         category: pipeline.category ?? '',
-        team: pipeline.team ?? '',
-        organization: pipeline.organization ?? '',
-        description: pipeline.description ?? '',
-        active: pipeline.active ?? true,
-        dealProbabilityEnabled: pipeline.dealProbabilityEnabled ?? false,
-        displayOrder: pipeline.displayOrder ?? undefined,
-        ownerUserId: pipeline.ownerUserId ?? undefined,
+        teamId: pipeline.team?.id ?? pipeline.teamId ?? undefined,
+        organizationId: pipeline.organization?.id ?? undefined,
+        deleted: pipeline.isDeleted ?? false,
       });
     } else {
-      setForm({
-        ...INITIAL_FORM,
-        active: true,
-        dealProbabilityEnabled: false,
-      });
+      setForm(INITIAL_FORM);
     }
   }, [isOpen, pipeline, mode]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    setOrganizationsLoading(true);
+    setOrgError(null);
+    organizationsApi
+      .list()
+      .then((data) => setOrganizations(data))
+      .catch((err: any) => {
+        console.error('Failed to load organizations for pipeline modal', err);
+        setOrgError(err?.response?.data?.message || err?.message || 'Failed to load organizations.');
+      })
+      .finally(() => setOrganizationsLoading(false));
+
+    setTeamsLoading(true);
+    setTeamError(null);
+    teamsApi
+      .list()
+      .then((data) => setTeams(data))
+      .catch((err: any) => {
+        console.error('Failed to load teams for pipeline modal', err);
+        setTeamError(err?.response?.data?.message || err?.message || 'Failed to load teams.');
+      })
+      .finally(() => setTeamsLoading(false));
+
+    setCategoriesLoading(true);
+    setCategoryError(null);
+    pipelinesApi
+      .listCategories()
+      .then((data) => {
+        const unique = new Set<string>();
+        [...categoryOptions, ...data].forEach((item) => {
+          const normalised = normaliseCategory(item);
+          if (normalised) {
+            unique.add(normalised);
+          }
+        });
+        setCategories(Array.from(unique).sort((a, b) => a.localeCompare(b)));
+      })
+      .catch((err: any) => {
+        console.error('Failed to load pipeline categories', err);
+        setCategoryError(err?.response?.data?.message || err?.message || 'Failed to load categories.');
+        // fallback to prop options if fetch fails
+        setCategories((prev) => {
+          if (prev.length > 0) return prev;
+          return categoryOptions
+            .map((item) => normaliseCategory(item))
+            .filter((item): item is string => Boolean(item));
+        });
+      })
+      .finally(() => setCategoriesLoading(false));
+  }, [isOpen, categoryOptions]);
+
   if (!isOpen) return null;
 
-  const handleChange = <K extends keyof PipelineRequest>(key: K, value: PipelineRequest[K]) => {
+  const handleChange = <K extends keyof PipelineFormState>(key: K, value: PipelineFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleNumberChange = (key: keyof PipelineRequest) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = event.target.value.trim();
-    if (raw === '') {
-      handleChange(key, undefined as PipelineRequest[typeof key]);
-      return;
-    }
-    const parsed = Number(raw);
-    if (!Number.isNaN(parsed)) {
-      handleChange(key, parsed as PipelineRequest[typeof key]);
-    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -98,9 +191,9 @@ export default function PipelineModal({
         ...form,
         name: form.name.trim(),
         category: form.category?.trim() || undefined,
-        team: form.team?.trim() || undefined,
-        organization: form.organization?.trim() || undefined,
-        description: form.description?.trim() || undefined,
+        teamId: form.teamId ?? undefined,
+        organizationId: form.organizationId ?? undefined,
+        ...(mode === 'edit' ? { deleted: form.deleted ?? false } : {}),
       });
       onClose();
     } catch (err: any) {
@@ -121,7 +214,7 @@ export default function PipelineModal({
         <p className="pipeline-modal-subtitle">
           {mode === 'create'
             ? 'Set up a pipeline to organize deals across stages.'
-            : 'Update pipeline details, ownership, and visibility.'}
+            : 'Update pipeline details and associations.'}
         </p>
 
         <form className="pipeline-modal-form" onSubmit={handleSubmit}>
@@ -131,100 +224,107 @@ export default function PipelineModal({
               type="text"
               value={form.name}
               onChange={(event) => handleChange('name', event.target.value)}
-              placeholder="Enterprise deals"
+              placeholder="Enterprise pipeline"
               className="pipeline-modal-input"
               required
             />
           </label>
 
-          <div className="pipeline-modal-grid">
-            <label className="pipeline-modal-label">
-              Category
-              <input
-                type="text"
-                value={form.category ?? ''}
-                onChange={(event) => handleChange('category', event.target.value)}
-                placeholder="e.g. Weddings"
-                className="pipeline-modal-input"
-              />
-            </label>
-            <label className="pipeline-modal-label">
-              Team
-              <input
-                type="text"
-                value={form.team ?? ''}
-                onChange={(event) => handleChange('team', event.target.value)}
-                placeholder="Sales East"
-                className="pipeline-modal-input"
-              />
-            </label>
-          </div>
-
-  <label className="pipeline-modal-label">
-            Organization
+          <label className="pipeline-modal-label">
+            Category
             <input
               type="text"
-              value={form.organization ?? ''}
-              onChange={(event) => handleChange('organization', event.target.value)}
-              placeholder="Brideside"
+              value={form.category ?? ''}
+              onChange={(event) => handleChange('category', event.target.value)}
+              placeholder="Photography"
               className="pipeline-modal-input"
+              list={categories.length > 0 ? 'pipeline-category-options' : undefined}
+              disabled={categoriesLoading && categories.length === 0}
             />
+            {categoryError && <span className="pipeline-modal-hint error">{categoryError}</span>}
+            {categories.length > 0 && (
+              <>
+                <datalist id="pipeline-category-options">
+                  {categories.map((category) => (
+                    <option key={category} value={category} />
+                  ))}
+                </datalist>
+                <div className="pipeline-modal-category-select">
+                  <span className="pipeline-modal-hint">Pick from existing categories</span>
+                  <div className="pipeline-modal-category-chip-row">
+                    {categories.map((category) => {
+                      const active = (form.category ?? '').trim() === category;
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          className={`pipeline-modal-category-chip${active ? ' active' : ''}`}
+                          onClick={() => handleChange('category', category)}
+                        >
+                          {category}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
           </label>
 
           <label className="pipeline-modal-label">
-            Description
-            <textarea
-              value={form.description ?? ''}
-              onChange={(event) => handleChange('description', event.target.value)}
-              placeholder="Describe the purpose of this pipeline…"
-              className="pipeline-modal-textarea"
-              rows={3}
-            />
+            Team
+            <select
+              value={form.teamId ?? ''}
+              onChange={(event) => {
+                const raw = event.target.value.trim();
+                handleChange('teamId', raw ? Number(raw) : undefined);
+              }}
+              className="pipeline-modal-input"
+              disabled={teamsLoading}
+            >
+              <option value="">No team</option>
+              {teams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+            {teamError && <span className="pipeline-modal-hint error">{teamError}</span>}
           </label>
 
-          <div className="pipeline-modal-grid">
-            <label className="pipeline-modal-label">
-              Display order
-              <input
-                type="number"
-                value={form.displayOrder ?? ''}
-                onChange={handleNumberChange('displayOrder')}
-                placeholder="Defaults to last"
-                className="pipeline-modal-input"
-                min={0}
-              />
-            </label>
-            <label className="pipeline-modal-label">
-              Owner user ID
-              <input
-                type="number"
-                value={form.ownerUserId ?? ''}
-                onChange={handleNumberChange('ownerUserId')}
-                placeholder="User ID"
-                className="pipeline-modal-input"
-                min={0}
-              />
-            </label>
-          </div>
+  <label className="pipeline-modal-label">
+            Organization
+            <select
+              value={form.organizationId ?? ''}
+              onChange={(event) => {
+                const raw = event.target.value.trim();
+                handleChange('organizationId', raw ? Number(raw) : undefined);
+              }}
+              className="pipeline-modal-input"
+              disabled={organizationsLoading}
+            >
+              <option value="">No organization</option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+            {orgError && <span className="pipeline-modal-hint error">{orgError}</span>}
+          </label>
 
-          <div className="pipeline-modal-checkbox-group">
-            <label className="pipeline-modal-checkbox">
-              <input
-                type="checkbox"
-                checked={form.active ?? true}
-                onChange={(event) => handleChange('active', event.target.checked)}
-              />
-              <span>Pipeline is active</span>
-            </label>
-            <label className="pipeline-modal-checkbox">
-              <input
-                type="checkbox"
-                checked={form.dealProbabilityEnabled ?? false}
-                onChange={(event) => handleChange('dealProbabilityEnabled', event.target.checked)}
-              />
-              <span>Enable deal probability</span>
-            </label>
-          </div>
+          {mode === 'edit' && (
+            <div className="pipeline-modal-checkbox-group">
+              <label className="pipeline-modal-checkbox">
+                <input
+                  type="checkbox"
+                  checked={form.deleted ?? false}
+                  onChange={(event) => handleChange('deleted', event.target.checked)}
+                />
+                <span>{form.deleted ? 'Archived pipeline (will be hidden from lists)' : 'Pipeline is active'}</span>
+              </label>
+            </div>
+          )}
 
           {error && <div className="pipeline-modal-error">{error}</div>}
 
@@ -241,5 +341,4 @@ export default function PipelineModal({
     </div>
   );
 }
-
 

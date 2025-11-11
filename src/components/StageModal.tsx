@@ -13,8 +13,6 @@ interface StageModalProps {
     order?: number;
     active: boolean;
     probability?: number | null;
-    rottenFlag?: boolean;
-    rottenDays?: number;
   }) => Promise<void>;
 }
 
@@ -30,8 +28,6 @@ export default function StageModal({
   const [order, setOrder] = useState<string>('');
   const [active, setActive] = useState(true);
   const [probability, setProbability] = useState<string>('');
-  const [rottenFlag, setRottenFlag] = useState(false);
-  const [rottenDays, setRottenDays] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,8 +42,6 @@ export default function StageModal({
       setOrder('');
       setActive(true);
       setProbability('');
-      setRottenFlag(false);
-      setRottenDays('');
       setSaving(false);
       setError(null);
       return;
@@ -62,19 +56,11 @@ export default function StageModal({
           ? String(stage.probability)
           : '',
       );
-      setRottenFlag(Boolean(stage.rottenFlag));
-      setRottenDays(
-        stage.rottenDays !== undefined && stage.rottenDays !== null
-          ? String(stage.rottenDays)
-          : '',
-      );
     } else {
       setName('');
       setOrder('');
       setActive(true);
       setProbability('');
-      setRottenFlag(false);
-      setRottenDays('');
     }
     setError(null);
   }, [isOpen, stage, mode]);
@@ -99,11 +85,6 @@ export default function StageModal({
         return;
       }
     }
-    const parsedRottenDays = rottenDays.trim() === '' ? undefined : Number(rottenDays);
-    if (parsedRottenDays !== undefined && (Number.isNaN(parsedRottenDays) || parsedRottenDays < 0)) {
-      setError('Rotten days must be zero or positive.');
-      return;
-    }
 
     setSaving(true);
     setError(null);
@@ -114,8 +95,6 @@ export default function StageModal({
         order: parsedOrder,
         active,
         probability: parsedProbability,
-        rottenFlag,
-        rottenDays: parsedRottenDays,
       });
       onClose();
     } catch (err: any) {
@@ -186,29 +165,6 @@ export default function StageModal({
             />
             <span>Stage is active</span>
           </label>
-
-          <div className="stage-modal-rotten">
-            <label className="stage-modal-checkbox">
-              <input
-                type="checkbox"
-                checked={rottenFlag}
-                onChange={(event) => setRottenFlag(event.target.checked)}
-              />
-              <span>Enable rotten tracking</span>
-            </label>
-            {rottenFlag && (
-              <label className="stage-modal-label">
-                Rotten after (days)
-                <input
-                  type="number"
-                  value={rottenDays}
-                  onChange={(event) => setRottenDays(event.target.value)}
-                  className="stage-modal-input"
-                  min={0}
-                />
-              </label>
-            )}
-          </div>
 
           {error && <div className="stage-modal-error">{error}</div>}
 

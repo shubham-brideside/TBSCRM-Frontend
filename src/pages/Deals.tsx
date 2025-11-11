@@ -1,386 +1,336 @@
-import { useState, useEffect, useRef } from 'react'
-import './Deals.css'
+import { useState, useEffect, useMemo, useRef, useCallback, type ChangeEvent, type FormEvent } from 'react';
+import './Deals.css';
+import { dealsApi } from '../services/deals';
+import type { Deal, DealStatus } from '../types/deal';
+import { organizationsApi } from '../services/organizations';
+import type { Organization } from '../types/organization';
+import { pipelinesApi } from '../services/pipelines';
+import type { Pipeline, Stage } from '../types/pipeline';
+import { personsApi } from '../services/api';
+import type { Person } from '../types/person';
 
-type Deal = {
-  id: number
-  name: string
-  value: number
-  personId: number | null
-  pipelineId: number | null
-  stageId: number | null
-  sourceId: number | null
-  organizationId: number | null
-  categoryId: number | null
-  eventType: string | null
-  status: string
-  commissionAmount: number | null
-  createdAt: string
-  venue: string
-  phoneNumber: string | null
-  finalThankYouSent: boolean | null
-  eventDateAsked: boolean | null
-  contactNumberAsked: boolean | null
-  venueAsked: boolean | null
-  eventDate: string
+type DealFilterStatus = 'all' | DealStatus;
+
+interface DealFormState {
+  name: string;
+  value: string;
+  status: DealStatus;
+  personId: string;
+  pipelineId: string;
+  stageId: string;
+  organizationId: string;
+  categoryId: string;
+  eventType: string;
+  venue: string;
+  phoneNumber: string;
+  eventDate: string;
+  commissionAmount: string;
 }
 
-type Organization = {
-  id: number
-  name: string
-}
+const initialFormState: DealFormState = {
+  name: '',
+  value: '',
+  status: 'IN_PROGRESS',
+  personId: '',
+  pipelineId: '',
+  stageId: '',
+  organizationId: '',
+  categoryId: '',
+  eventType: '',
+  venue: '',
+  phoneNumber: '',
+  eventDate: '',
+  commissionAmount: '',
+};
 
-type Category = {
-  id: number
-  name: string
-}
-
-type Person = {
-  id: number
-  name: string
-}
+const statusColors: Record<DealStatus, string> = {
+  WON: '#10b981',
+  LOST: '#ef4444',
+  IN_PROGRESS: '#8b5cf6',
+};
 
 const Deals = () => {
-  const [deals, setDeals] = useState<Deal[]>([])
-  const [organizations, setOrganizations] = useState<Organization[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [persons, setPersons] = useState<Person[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
-  const [filterStatus, setFilterStatus] = useState<string>('all')
-  const [filterOrganization, setFilterOrganization] = useState<number | null>(null)
-  const [filterCategory, setFilterCategory] = useState<number | null>(null)
-  const [filterPerson, setFilterPerson] = useState<number | null>(null)
-  const [searchQuery, setSearchQuery] = useState<string>('')
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
-  const [viewMode, setViewMode] = useState<'grid' | 'sheet'>('grid')
-  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState<boolean>(false)
-  const [isSheetEditing, setIsSheetEditing] = useState<boolean>(false)
-  const viewDropdownRef = useRef<HTMLDivElement>(null)
-  const [formData, setFormData] = useState<Partial<Deal>>({
-    name: '',
-    value: 0,
-    status: 'IN_PROGRESS',
-    venue: '',
-    phoneNumber: '',
-    eventDate: '',
-    eventType: '',
-    organizationId: null,
-    categoryId: null,
-    personId: null
-  })
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [persons, setPersons] = useState<Person[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<DealFilterStatus>('all');
+  const [filterOrganization, setFilterOrganization] = useState<number | null>(null);
+  const [filterCategory, setFilterCategory] = useState<number | null>(null);
+  const [filterPerson, setFilterPerson] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'sheet'>('grid');
+  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState<boolean>(false);
+  const viewDropdownRef = useRef<HTMLDivElement>(null);
+  const [formData, setFormData] = useState<DealFormState>(initialFormState);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [actionInFlight, setActionInFlight] = useState<{ dealId: number; type: 'status' | 'stage' } | null>(null);
 
-  // TODO: Replace with actual API endpoints
-  useEffect(() => {
-    // Simulated API calls - replace with actual fetch
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        // Example: const dealsResponse = await fetch('/api/deals')
-        // const dealsData = await dealsResponse.json()
-        
-        // Mock data for now
-        const mockDeals: Deal[] = [
-          {
-            id: 3,
-            name: "Grand Hotel Event",
-            value: 50000.00,
-            personId: 1,
-            pipelineId: null,
-            stageId: null,
-            sourceId: null,
-            organizationId: 1,
-            categoryId: 1,
-            eventType: "Wedding",
-            status: "WON",
-            commissionAmount: null,
-            createdAt: "2025-10-16T21:35:58.781483",
-            venue: "Grand Hotel",
-            phoneNumber: null,
-            finalThankYouSent: null,
-            eventDateAsked: null,
-            contactNumberAsked: null,
-            venueAsked: null,
-            eventDate: "2024-06-15"
-          },
-          {
-            id: 4,
-            name: "Corporate Conference",
-            value: 75000.00,
-            personId: 2,
-            pipelineId: null,
-            stageId: null,
-            sourceId: null,
-            organizationId: 2,
-            categoryId: 2,
-            eventType: "Conference",
-            status: "OPEN",
-            commissionAmount: null,
-            createdAt: "2025-10-15T10:20:30.123456",
-            venue: "Convention Center",
-            phoneNumber: "+1234567890",
-            finalThankYouSent: null,
-            eventDateAsked: null,
-            contactNumberAsked: null,
-            venueAsked: null,
-            eventDate: "2024-08-20"
-          }
-        ]
-        
-        const mockOrganizations: Organization[] = [
-          { id: 1, name: "ABC Corporation" },
-          { id: 2, name: "XYZ Industries" },
-          { id: 3, name: "Tech Solutions Inc" }
-        ]
-        
-        const mockCategories: Category[] = [
-          { id: 1, name: "Electronics" },
-          { id: 2, name: "Apparel" },
-          { id: 3, name: "Food & Beverage" }
-        ]
-        
-        const mockPersons: Person[] = [
-          { id: 1, name: "John Doe" },
-          { id: 2, name: "Jane Smith" },
-          { id: 3, name: "Mike Johnson" },
-          { id: 4, name: "Sarah Williams" }
-        ]
-        
-        setDeals(mockDeals)
-        setOrganizations(mockOrganizations)
-        setCategories(mockCategories)
-        setPersons(mockPersons)
-        setLoading(false)
-      } catch (err) {
-        setError('Failed to load data')
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [])
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2
-    }).format(value)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
-
-  const filteredDeals = deals.filter(deal => {
-    const statusMatch = filterStatus === 'all' || deal.status === filterStatus
-    const organizationMatch = filterOrganization === null || deal.organizationId === filterOrganization
-    const categoryMatch = filterCategory === null || deal.categoryId === filterCategory
-    const personMatch = filterPerson === null || deal.personId === filterPerson
-    const searchMatch = searchQuery === '' || 
-      (deal.name && deal.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (deal.venue && deal.venue.toLowerCase().includes(searchQuery.toLowerCase()))
-    return statusMatch && organizationMatch && categoryMatch && personMatch && searchMatch
-  })
-
-  const handleOpenModal = () => {
-    setIsModalOpen(true)
-      setFormData({
-        name: '',
-        value: 0,
-        status: 'IN_PROGRESS',
-        venue: '',
-        phoneNumber: '',
-        eventDate: '',
-        eventType: '',
-        organizationId: null,
-        categoryId: null,
-        personId: null
-      })
-  }
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'value' || name === 'organizationId' || name === 'categoryId' || name === 'personId'
-        ? (value === '' ? null : Number(value))
-        : value
-    }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const loadDeals = useCallback(async (status: DealFilterStatus, preserveDealId?: number | null) => {
+    setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/deals', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // })
-      // const newDeal = await response.json()
-      
-      // Mock: Add new deal to state
-      const newDeal: Deal = {
-        id: Date.now(),
-        ...formData,
-        name: formData.name || `Deal #${Date.now()}`,
-        value: formData.value || 0,
-        status: formData.status || 'IN_PROGRESS',
-        venue: formData.venue || '',
-        createdAt: new Date().toISOString(),
-        personId: formData.personId || null,
-        pipelineId: null,
-        stageId: null,
-        sourceId: null,
-        eventType: formData.eventType || null,
-        phoneNumber: formData.phoneNumber || null,
-        finalThankYouSent: null,
-        eventDateAsked: null,
-        contactNumberAsked: null,
-        venueAsked: null,
-        eventDate: formData.eventDate || ''
-      } as Deal
-      
-      setDeals(prev => [...prev, newDeal])
-      setIsModalOpen(false)
-      setFormData({
-        name: '',
-        value: 0,
-        status: 'IN_PROGRESS',
-        venue: '',
-        phoneNumber: '',
-        eventDate: '',
-        eventType: '',
-        organizationId: null,
-        categoryId: null,
-        personId: null
-      })
-    } catch (err) {
-      setError('Failed to create deal')
-    }
-  }
-
-  // Sheet edit helpers
-  const updateDeal = (dealId: number, field: keyof Deal, value: string | number | null) => {
-    setDeals(prev => prev.map(deal => 
-      deal.id === dealId ? { ...deal, [field]: value } : deal
-    ))
-  }
-
-  const renderCell = (
-    value: string | number | null,
-    onSave: (v: string) => void,
-    type: 'text' | 'number' | 'date' | 'select' = 'text',
-    options?: { value: string; label: string }[],
-    displayValue?: string
-  ) => {
-    if (!isSheetEditing) {
-      if (displayValue !== undefined) {
-        return <span className="cell-text">{displayValue}</span>
+      let data: Deal[];
+      if (status === 'all') {
+        data = await dealsApi.list();
+      } else {
+        data = await dealsApi.listByStatus(status);
       }
-      if (value === null || value === '') return <span className="cell-text">—</span>
-      if (type === 'number' && typeof value === 'number') {
-        return <span className="cell-text">{formatCurrency(value)}</span>
+      setDeals(data);
+      if (preserveDealId) {
+        const match = data.find((deal) => deal.id === preserveDealId) ?? null;
+        setSelectedDeal(match);
+      } else if (!preserveDealId) {
+        setSelectedDeal((prev) => {
+          if (!prev) {
+            return null;
+          }
+          const match = data.find((deal) => deal.id === prev.id) ?? null;
+          return match;
+        });
       }
-      if (type === 'date' && typeof value === 'string') {
-        return <span className="cell-text">{formatDate(value)}</span>
+      setError(null);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to load deals.';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDeals(filterStatus, selectedDeal?.id ?? null);
+  }, [filterStatus, selectedDeal?.id, loadDeals]);
+
+  useEffect(() => {
+    const fetchReferenceData = async () => {
+      try {
+        const [orgs, pipelineData] = await Promise.all([
+          organizationsApi.list(),
+          pipelinesApi.list({ includeStages: true }),
+        ]);
+        setOrganizations(orgs);
+        setPipelines(pipelineData);
+      } catch (err) {
+        console.error('Failed to load organizations or pipelines', err);
       }
-      if (type === 'select' && options) {
-        const option = options.find(opt => opt.value === String(value))
-        return <span className="cell-text">{option?.label || '—'}</span>
+
+      try {
+        const personsPage = await personsApi.list({ page: 0, size: 200, sort: 'name,asc' });
+        setPersons(personsPage.content ?? []);
+      } catch (err) {
+        console.error('Failed to load persons', err);
       }
-      return <span className="cell-text">{String(value)}</span>
-    }
+    };
 
-    if (type === 'select' && options) {
-      return (
-        <select
-          className="sheet-input"
-          value={String(value || '')}
-          onChange={(e) => onSave(e.target.value)}
-          autoFocus
-        >
-          {options.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      )
-    }
+    fetchReferenceData();
+  }, []);
 
-    if (type === 'date') {
-      return (
-        <input
-          type="date"
-          className="sheet-input"
-          value={value ? String(value).split('T')[0] : ''}
-          onChange={(e) => onSave(e.target.value)}
-          autoFocus
-        />
-      )
-    }
-
-    if (type === 'number') {
-      return (
-        <input
-          type="number"
-          className="sheet-input"
-          value={value === null || value === '' ? '' : value}
-          onChange={(e) => onSave(e.target.value)}
-          step="0.01"
-          autoFocus
-        />
-      )
-    }
-
-    return (
-      <input
-        className="sheet-input"
-        value={value || ''}
-        onChange={(e) => onSave(e.target.value)}
-        autoFocus
-      />
-    )
-  }
-
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (viewDropdownRef.current && !viewDropdownRef.current.contains(event.target as Node)) {
-        setIsViewDropdownOpen(false)
+        setIsViewDropdownOpen(false);
       }
-    }
+    };
     if (isViewDropdownOpen) {
-      // Use setTimeout to ensure the click event on the button completes first
       setTimeout(() => {
-        document.addEventListener('click', handleClickOutside)
-      }, 0)
+        document.addEventListener('click', handleClickOutside);
+      }, 0);
       return () => {
-        document.removeEventListener('click', handleClickOutside)
-      }
+        document.removeEventListener('click', handleClickOutside);
+      };
     }
-  }, [isViewDropdownOpen])
+    return undefined;
+  }, [isViewDropdownOpen]);
 
-  const statusColors: Record<string, string> = {
-    'WON': '#10b981',
-    'LOST': '#ef4444',
-    'IN_PROGRESS': '#8b5cf6'
-  }
+  const formatCurrency = useCallback((value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(value || 0);
+  }, []);
+
+  const formatDate = useCallback((dateString?: string | null) => {
+    if (!dateString) {
+      return '—';
+    }
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+      return dateString;
+    }
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }, []);
+
+  const organizationsById = useMemo(() => {
+    const map = new Map<number, Organization>();
+    organizations.forEach((org) => map.set(org.id, org));
+    return map;
+  }, [organizations]);
+
+  const personsById = useMemo(() => {
+    const map = new Map<number, Person>();
+    persons.forEach((person) => map.set(person.id, person));
+    return map;
+  }, [persons]);
+
+  const pipelinesById = useMemo(() => {
+    const map = new Map<number, Pipeline>();
+    pipelines.forEach((pipeline) => map.set(pipeline.id, pipeline));
+    return map;
+  }, [pipelines]);
+
+  const categoryOptions = useMemo(() => {
+    const labels = new Map<number, string>();
+    deals.forEach((deal) => {
+      if (deal.categoryId != null && !labels.has(deal.categoryId)) {
+        labels.set(deal.categoryId, `Category ${deal.categoryId}`);
+      }
+    });
+    return Array.from(labels.entries()).map(([id, name]) => ({ id, name }));
+  }, [deals]);
+
+  const filteredDeals = useMemo(() => {
+    return deals.filter((deal) => {
+      const organizationMatch = filterOrganization === null || deal.organizationId === filterOrganization;
+      const categoryMatch = filterCategory === null || deal.categoryId === filterCategory;
+      const personMatch = filterPerson === null || deal.personId === filterPerson;
+      const query = searchQuery.trim().toLowerCase();
+      const searchMatch =
+        query.length === 0 ||
+        (deal.name && deal.name.toLowerCase().includes(query)) ||
+        (deal.venue && deal.venue.toLowerCase().includes(query));
+      return organizationMatch && categoryMatch && personMatch && searchMatch;
+    });
+  }, [deals, filterOrganization, filterCategory, filterPerson, searchQuery]);
+
+  const stageOptionsForForm = useMemo(() => {
+    if (!formData.pipelineId) {
+      return [];
+    }
+    const pipeline = pipelinesById.get(Number(formData.pipelineId));
+    return pipeline?.stages ?? [];
+  }, [pipelinesById, formData.pipelineId]);
+
+  const handleOpenModal = () => {
+    setFormData(initialFormState);
+    setModalError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    if (isSubmitting) {
+      return;
+    }
+    setIsModalOpen(false);
+  };
+
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = event.target;
+    setFormData((prev) => {
+      if (name === 'pipelineId') {
+        return {
+          ...prev,
+          pipelineId: value,
+          stageId: '',
+        };
+      }
+      return {
+        ...prev,
+        [name]: value,
+      };
+    });
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!formData.name.trim()) {
+      setModalError('Deal name is required.');
+      return;
+    }
+
+    const payload = {
+      name: formData.name.trim(),
+      status: formData.status,
+      value: formData.value ? Number(formData.value) : undefined,
+      personId: formData.personId ? Number(formData.personId) : undefined,
+      pipelineId: formData.pipelineId ? Number(formData.pipelineId) : undefined,
+      stageId: formData.stageId ? Number(formData.stageId) : undefined,
+      organizationId: formData.organizationId ? Number(formData.organizationId) : undefined,
+      categoryId: formData.categoryId ? Number(formData.categoryId) : undefined,
+      eventType: formData.eventType ? formData.eventType : undefined,
+      commissionAmount: formData.commissionAmount ? Number(formData.commissionAmount) : undefined,
+      venue: formData.venue ? formData.venue : undefined,
+      phoneNumber: formData.phoneNumber ? formData.phoneNumber : undefined,
+      eventDate: formData.eventDate ? formData.eventDate : undefined,
+    };
+
+    setIsSubmitting(true);
+    setModalError(null);
+    try {
+      const createdDeal = await dealsApi.create(payload);
+      await loadDeals(filterStatus, createdDeal.id);
+      setIsModalOpen(false);
+      setFormData(initialFormState);
+      setSelectedDeal(createdDeal);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to create deal.';
+      setModalError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStatusUpdate = async (dealId: number, nextStatus: DealStatus) => {
+    setActionInFlight({ dealId, type: 'status' });
+    try {
+      const updatedDeal = await dealsApi.updateStatus(dealId, { status: nextStatus });
+      setDeals((prev) => prev.map((deal) => (deal.id === dealId ? updatedDeal : deal)));
+      setSelectedDeal((prev) => (prev && prev.id === dealId ? updatedDeal : prev));
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to update status.';
+      setError(message);
+    } finally {
+      setActionInFlight(null);
+    }
+  };
+
+  const handleStageUpdate = async (dealId: number, stageId: number) => {
+    setActionInFlight({ dealId, type: 'stage' });
+    try {
+      const updatedDeal = await dealsApi.moveToStage(dealId, { stageId });
+      setDeals((prev) => prev.map((deal) => (deal.id === dealId ? updatedDeal : deal)));
+      setSelectedDeal((prev) => (prev && prev.id === dealId ? updatedDeal : prev));
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to update stage.';
+      setError(message);
+    } finally {
+      setActionInFlight(null);
+    }
+  };
+
+  const isLoadingAction = (dealId: number, type: 'status' | 'stage') =>
+    actionInFlight?.dealId === dealId && actionInFlight?.type === type;
+
+  const selectedDealPipeline = selectedDeal?.pipelineId
+    ? pipelinesById.get(selectedDeal.pipelineId) ?? null
+    : null;
+  const selectedDealStages: Stage[] = selectedDealPipeline?.stages ?? [];
 
   if (loading) {
     return (
       <div className="deals-page">
         <div className="deals-loading">Loading deals...</div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -388,7 +338,7 @@ const Deals = () => {
       <div className="deals-page">
         <div className="deals-error">{error}</div>
       </div>
-    )
+    );
   }
 
   return (
@@ -403,40 +353,40 @@ const Deals = () => {
                 className="deals-search-input"
                 placeholder="Search deals by name or venue..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(event) => setSearchQuery(event.target.value)}
               />
               <span className="deals-search-icon">🔍</span>
             </div>
           </div>
           <div className="deals-header-right">
             <div className="view-dropdown" ref={viewDropdownRef}>
-              <button 
-                className="icon-btn-tree" 
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setIsViewDropdownOpen(!isViewDropdownOpen)
+              <button
+                className="icon-btn-tree"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsViewDropdownOpen(!isViewDropdownOpen);
                 }}
               >
                 {viewMode === 'grid' ? 'Grid' : 'Sheet'} <span>▾</span>
               </button>
               {isViewDropdownOpen && (
                 <div className="view-menu">
-                  <button 
-                    className={`view-menu-item ${viewMode === 'grid' ? 'active' : ''}`} 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setViewMode('grid')
-                      setIsViewDropdownOpen(false)
+                  <button
+                    className={`view-menu-item ${viewMode === 'grid' ? 'active' : ''}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setViewMode('grid');
+                      setIsViewDropdownOpen(false);
                     }}
                   >
                     Grid
                   </button>
-                  <button 
-                    className={`view-menu-item ${viewMode === 'sheet' ? 'active' : ''}`} 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setViewMode('sheet')
-                      setIsViewDropdownOpen(false)
+                  <button
+                    className={`view-menu-item ${viewMode === 'sheet' ? 'active' : ''}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setViewMode('sheet');
+                      setIsViewDropdownOpen(false);
                     }}
                   >
                     Sheet
@@ -444,74 +394,72 @@ const Deals = () => {
                 </div>
               )}
             </div>
-            {viewMode === 'sheet' && (
-              <button
-                className="icon-btn"
-                onClick={() => setIsSheetEditing((v) => !v)}
-                title={isSheetEditing ? 'Finish editing' : 'Edit sheet'}
-                aria-label={isSheetEditing ? 'Finish editing' : 'Edit sheet'}
-              >
-                {isSheetEditing ? '✓' : '✎'}
-              </button>
-            )}
-            <button className="deals-add-btn" onClick={handleOpenModal}>+ New Deal</button>
+            <button className="deals-add-btn" onClick={handleOpenModal}>
+              + New Deal
+            </button>
           </div>
         </div>
         <div className="deals-header-bottom">
           <div className="deals-filters">
-            <button 
+            <button
               className={`filter-btn ${filterStatus === 'all' ? 'active' : ''}`}
               onClick={() => setFilterStatus('all')}
             >
               All
             </button>
-            <button 
+            <button
               className={`filter-btn ${filterStatus === 'WON' ? 'active' : ''}`}
               onClick={() => setFilterStatus('WON')}
             >
               Won
             </button>
-            <button 
+            <button
               className={`filter-btn ${filterStatus === 'LOST' ? 'active' : ''}`}
               onClick={() => setFilterStatus('LOST')}
             >
               Lost
             </button>
-            <button 
+            <button
               className={`filter-btn ${filterStatus === 'IN_PROGRESS' ? 'active' : ''}`}
               onClick={() => setFilterStatus('IN_PROGRESS')}
             >
               In Progress
             </button>
           </div>
-          <select 
+          <select
             className="filter-select"
-            value={filterOrganization || ''}
-            onChange={(e) => setFilterOrganization(e.target.value === '' ? null : Number(e.target.value))}
+            value={filterOrganization ?? ''}
+            onChange={(event) => setFilterOrganization(event.target.value === '' ? null : Number(event.target.value))}
           >
             <option value="">All Organizations</option>
-            {organizations.map(org => (
-              <option key={org.id} value={org.id}>{org.name}</option>
+            {organizations.map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name}
+              </option>
             ))}
           </select>
-          <select 
+          <select
             className="filter-select"
-            value={filterCategory || ''}
-            onChange={(e) => setFilterCategory(e.target.value === '' ? null : Number(e.target.value))}
+            value={filterCategory ?? ''}
+            onChange={(event) => setFilterCategory(event.target.value === '' ? null : Number(event.target.value))}
           >
             <option value="">All Categories</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            {categoryOptions.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
             ))}
           </select>
-          <select 
+          <select
             className="filter-select"
-            value={filterPerson || ''}
-            onChange={(e) => setFilterPerson(e.target.value === '' ? null : Number(e.target.value))}
+            value={filterPerson ?? ''}
+            onChange={(event) => setFilterPerson(event.target.value === '' ? null : Number(event.target.value))}
           >
             <option value="">All Clients</option>
-            {persons.map(person => (
-              <option key={person.id} value={person.id}>{person.name}</option>
+            {persons.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
             ))}
           </select>
         </div>
@@ -524,24 +472,22 @@ const Deals = () => {
               <div className="deals-empty">No deals found</div>
             ) : (
               filteredDeals.map((deal) => (
-                <div 
-                  key={deal.id} 
+                <div
+                  key={deal.id}
                   className={`deal-card ${selectedDeal?.id === deal.id ? 'selected' : ''}`}
                   onClick={() => setSelectedDeal(deal)}
                 >
                   <div className="deal-card-header">
                     <div className="deal-name">{deal.name || `Deal #${deal.id}`}</div>
-                    <div 
+                    <div
                       className="deal-status-badge"
                       style={{ backgroundColor: statusColors[deal.status] || '#6b7280' }}
                     >
                       {deal.status}
                     </div>
                   </div>
-                  
-                  <div className="deal-value">
-                    {formatCurrency(deal.value)}
-                  </div>
+
+                  <div className="deal-value">{formatCurrency(deal.value)}</div>
 
                   <div className="deal-details">
                     {deal.venue && (
@@ -564,10 +510,8 @@ const Deals = () => {
                     )}
                   </div>
 
-                  {deal.commissionAmount !== null && (
-                    <div className="deal-commission">
-                      Commission: {formatCurrency(deal.commissionAmount)}
-                    </div>
+                  {deal.commissionAmount != null && (
+                    <div className="deal-commission">Commission: {formatCurrency(deal.commissionAmount)}</div>
                   )}
                 </div>
               ))
@@ -594,111 +538,38 @@ const Deals = () => {
               <tbody>
                 {filteredDeals.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="deals-empty-cell">No deals found</td>
+                    <td colSpan={11} className="deals-empty-cell">
+                      No deals found
+                    </td>
                   </tr>
                 ) : (
                   filteredDeals.map((deal) => {
-                    const orgName = organizations.find(o => o.id === deal.organizationId)?.name || '—'
-                    const catName = categories.find(c => c.id === deal.categoryId)?.name || '—'
-                    const personName = persons.find(p => p.id === deal.personId)?.name || '—'
+                    const orgName = deal.organizationId
+                      ? organizationsById.get(deal.organizationId)?.name ?? `Organization ${deal.organizationId}`
+                      : '—';
+                    const personName = deal.personId
+                      ? personsById.get(deal.personId)?.name ?? `Person ${deal.personId}`
+                      : '—';
+                    const categoryLabel =
+                      deal.categoryId != null
+                        ? categoryOptions.find((category) => category.id === deal.categoryId)?.name ??
+                          `Category ${deal.categoryId}`
+                        : '—';
                     return (
                       <tr key={deal.id}>
-                        <td>
-                          {renderCell(
-                            deal.name || `Deal #${deal.id}`,
-                            (v) => updateDeal(deal.id, 'name', v)
-                          )}
-                        </td>
-                        <td>
-                          {renderCell(
-                            deal.value,
-                            (v) => updateDeal(deal.id, 'value', v ? Number(v) : 0),
-                            'number'
-                          )}
-                        </td>
-                        <td>
-                          {renderCell(
-                            deal.status,
-                            (v) => updateDeal(deal.id, 'status', v),
-                            'select',
-                            [
-                              { value: 'WON', label: 'Won' },
-                              { value: 'LOST', label: 'Lost' },
-                              { value: 'IN_PROGRESS', label: 'In Progress' }
-                            ]
-                          )}
-                        </td>
-                        <td>
-                          {renderCell(
-                            deal.personId ? String(deal.personId) : '',
-                            (v) => updateDeal(deal.id, 'personId', v ? Number(v) : null),
-                            'select',
-                            [
-                              { value: '', label: '—' },
-                              ...persons.map(p => ({ value: String(p.id), label: p.name }))
-                            ],
-                            personName
-                          )}
-                        </td>
-                        <td>
-                          {renderCell(
-                            deal.organizationId ? String(deal.organizationId) : '',
-                            (v) => updateDeal(deal.id, 'organizationId', v ? Number(v) : null),
-                            'select',
-                            [
-                              { value: '', label: '—' },
-                              ...organizations.map(o => ({ value: String(o.id), label: o.name }))
-                            ],
-                            orgName
-                          )}
-                        </td>
-                        <td>
-                          {renderCell(
-                            deal.categoryId ? String(deal.categoryId) : '',
-                            (v) => updateDeal(deal.id, 'categoryId', v ? Number(v) : null),
-                            'select',
-                            [
-                              { value: '', label: '—' },
-                              ...categories.map(c => ({ value: String(c.id), label: c.name }))
-                            ],
-                            catName
-                          )}
-                        </td>
-                        <td>
-                          {renderCell(
-                            deal.venue,
-                            (v) => updateDeal(deal.id, 'venue', v)
-                          )}
-                        </td>
-                        <td>
-                          {renderCell(
-                            deal.eventDate,
-                            (v) => updateDeal(deal.id, 'eventDate', v),
-                            'date'
-                          )}
-                        </td>
-                        <td>
-                          {renderCell(
-                            deal.eventType,
-                            (v) => updateDeal(deal.id, 'eventType', v)
-                          )}
-                        </td>
-                        <td>
-                          {renderCell(
-                            deal.phoneNumber,
-                            (v) => updateDeal(deal.id, 'phoneNumber', v)
-                          )}
-                        </td>
-                        
-                        <td>
-                          {renderCell(
-                            deal.createdAt,
-                            (v) => updateDeal(deal.id, 'createdAt', v),
-                            'date'
-                          )}
-                        </td>
+                        <td>{deal.name || `Deal #${deal.id}`}</td>
+                        <td>{formatCurrency(deal.value)}</td>
+                        <td>{deal.status}</td>
+                        <td>{personName}</td>
+                        <td>{orgName}</td>
+                        <td>{categoryLabel}</td>
+                        <td>{deal.venue || '—'}</td>
+                        <td>{formatDate(deal.eventDate)}</td>
+                        <td>{deal.eventType || '—'}</td>
+                        <td>{deal.phoneNumber || '—'}</td>
+                        <td>{formatDate(deal.createdAt)}</td>
                       </tr>
-                    )
+                    );
                   })
                 )}
               </tbody>
@@ -710,14 +581,11 @@ const Deals = () => {
           <div className="deal-detail-panel">
             <div className="deal-detail-header">
               <h3 className="deal-detail-title">Deal Details</h3>
-              <button 
-                className="deal-detail-close"
-                onClick={() => setSelectedDeal(null)}
-              >
+              <button className="deal-detail-close" onClick={() => setSelectedDeal(null)}>
                 ×
               </button>
             </div>
-            
+
             <div className="deal-detail-content">
               <div className="deal-detail-section">
                 <div className="deal-detail-row">
@@ -730,73 +598,118 @@ const Deals = () => {
                 </div>
                 <div className="deal-detail-row">
                   <span className="deal-detail-label">Status:</span>
-                  <span 
-                    className="deal-detail-value"
-                    style={{ color: statusColors[selectedDeal.status] || '#6b7280' }}
+                  <select
+                    className="deal-detail-select"
+                    value={selectedDeal.status}
+                    onChange={(event) => handleStatusUpdate(selectedDeal.id, event.target.value as DealStatus)}
+                    disabled={isLoadingAction(selectedDeal.id, 'status')}
                   >
-                    {selectedDeal.status}
-                  </span>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="WON">Won</option>
+                    <option value="LOST">Lost</option>
+                  </select>
                 </div>
               </div>
 
-              {selectedDeal.venue && (
-                <div className="deal-detail-section">
-                  <h4 className="deal-detail-section-title">Event Information</h4>
-                  <div className="deal-detail-row">
-                    <span className="deal-detail-label">Venue:</span>
-                    <span className="deal-detail-value">{selectedDeal.venue}</span>
-                  </div>
-                  {selectedDeal.eventDate && (
-                    <div className="deal-detail-row">
-                      <span className="deal-detail-label">Event Date:</span>
-                      <span className="deal-detail-value">{formatDate(selectedDeal.eventDate)}</span>
-                    </div>
-                  )}
-                  {selectedDeal.eventType && (
-                    <div className="deal-detail-row">
-                      <span className="deal-detail-label">Event Type:</span>
-                      <span className="deal-detail-value">{selectedDeal.eventType}</span>
-                    </div>
+              <div className="deal-detail-section">
+                <h4 className="deal-detail-section-title">Associations</h4>
+                <div className="deal-detail-row">
+                  <span className="deal-detail-label">Client:</span>
+                  <span className="deal-detail-value">
+                    {selectedDeal.personId
+                      ? personsById.get(selectedDeal.personId)?.name ?? `Person ${selectedDeal.personId}`
+                      : '—'}
+                  </span>
+                </div>
+                <div className="deal-detail-row">
+                  <span className="deal-detail-label">Organization:</span>
+                  <span className="deal-detail-value">
+                    {selectedDeal.organizationId
+                      ? organizationsById.get(selectedDeal.organizationId)?.name ??
+                        `Organization ${selectedDeal.organizationId}`
+                      : '—'}
+                  </span>
+                </div>
+                <div className="deal-detail-row">
+                  <span className="deal-detail-label">Pipeline:</span>
+                  <span className="deal-detail-value">
+                    {selectedDealPipeline ? selectedDealPipeline.name : '—'}
+                  </span>
+                </div>
+                <div className="deal-detail-row">
+                  <span className="deal-detail-label">Stage:</span>
+                  {selectedDealPipeline ? (
+                    <select
+                      className="deal-detail-select"
+                      value={selectedDeal.stageId ?? ''}
+                      onChange={(event) =>
+                        handleStageUpdate(selectedDeal.id, Number(event.target.value))
+                      }
+                      disabled={isLoadingAction(selectedDeal.id, 'stage')}
+                    >
+                      <option value="" disabled>
+                        Select stage
+                      </option>
+                      {selectedDealStages.map((stage) => (
+                        <option key={stage.id} value={stage.id}>
+                          {stage.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="deal-detail-value">—</span>
                   )}
                 </div>
-              )}
+              </div>
+
+              <div className="deal-detail-section">
+                <h4 className="deal-detail-section-title">Event Information</h4>
+                <div className="deal-detail-row">
+                  <span className="deal-detail-label">Venue:</span>
+                  <span className="deal-detail-value">{selectedDeal.venue || '—'}</span>
+                </div>
+                <div className="deal-detail-row">
+                  <span className="deal-detail-label">Event Date:</span>
+                  <span className="deal-detail-value">{formatDate(selectedDeal.eventDate)}</span>
+                </div>
+                <div className="deal-detail-row">
+                  <span className="deal-detail-label">Event Type:</span>
+                  <span className="deal-detail-value">{selectedDeal.eventType || '—'}</span>
+                </div>
+              </div>
 
               <div className="deal-detail-section">
                 <h4 className="deal-detail-section-title">Additional Information</h4>
-                {selectedDeal.phoneNumber && (
-                  <div className="deal-detail-row">
-                    <span className="deal-detail-label">Phone:</span>
-                    <span className="deal-detail-value">{selectedDeal.phoneNumber}</span>
-                  </div>
-                )}
-                {selectedDeal.commissionAmount !== null && (
-                  <div className="deal-detail-row">
-                    <span className="deal-detail-label">Commission:</span>
-                    <span className="deal-detail-value">{formatCurrency(selectedDeal.commissionAmount)}</span>
-                  </div>
-                )}
+                <div className="deal-detail-row">
+                  <span className="deal-detail-label">Phone:</span>
+                  <span className="deal-detail-value">{selectedDeal.phoneNumber || '—'}</span>
+                </div>
+                <div className="deal-detail-row">
+                  <span className="deal-detail-label">Commission:</span>
+                  <span className="deal-detail-value">
+                    {selectedDeal.commissionAmount != null
+                      ? formatCurrency(selectedDeal.commissionAmount)
+                      : '—'}
+                  </span>
+                </div>
                 <div className="deal-detail-row">
                   <span className="deal-detail-label">Created:</span>
                   <span className="deal-detail-value">{formatDate(selectedDeal.createdAt)}</span>
                 </div>
               </div>
-
-              <div className="deal-detail-actions">
-                <button className="deal-action-btn">Edit</button>
-                <button className="deal-action-btn">Delete</button>
-        </div>
-      </div>
-    </div>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* New Deal Modal */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Create New Deal</h3>
-              <button className="modal-close" onClick={handleCloseModal}>×</button>
+              <button className="modal-close" onClick={handleCloseModal} disabled={isSubmitting}>
+                ×
+              </button>
             </div>
             <form className="modal-form" onSubmit={handleSubmit}>
               <div className="form-group">
@@ -805,24 +718,26 @@ const Deals = () => {
                   type="text"
                   name="name"
                   className="form-input"
-                  value={formData.name || ''}
+                  value={formData.name}
                   onChange={handleInputChange}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Value ($) *</label>
+                  <label className="form-label">Value *</label>
                   <input
                     type="number"
                     name="value"
                     className="form-input"
-                    value={formData.value || ''}
+                    value={formData.value}
                     onChange={handleInputChange}
                     min="0"
                     step="0.01"
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -831,9 +746,10 @@ const Deals = () => {
                   <select
                     name="status"
                     className="form-input"
-                    value={formData.status || 'IN_PROGRESS'}
+                    value={formData.status}
                     onChange={handleInputChange}
                     required
+                    disabled={isSubmitting}
                   >
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="WON">Won</option>
@@ -848,12 +764,15 @@ const Deals = () => {
                   <select
                     name="personId"
                     className="form-input"
-                    value={formData.personId || ''}
+                    value={formData.personId}
                     onChange={handleInputChange}
+                    disabled={isSubmitting}
                   >
                     <option value="">Select Client</option>
-                    {persons.map(person => (
-                      <option key={person.id} value={person.id}>{person.name}</option>
+                    {persons.map((person) => (
+                      <option key={person.id} value={person.id}>
+                        {person.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -863,12 +782,53 @@ const Deals = () => {
                   <select
                     name="organizationId"
                     className="form-input"
-                    value={formData.organizationId || ''}
+                    value={formData.organizationId}
                     onChange={handleInputChange}
+                    disabled={isSubmitting}
                   >
                     <option value="">Select Organization</option>
-                    {organizations.map(org => (
-                      <option key={org.id} value={org.id}>{org.name}</option>
+                    {organizations.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Pipeline</label>
+                  <select
+                    name="pipelineId"
+                    className="form-input"
+                    value={formData.pipelineId}
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select Pipeline</option>
+                    {pipelines.map((pipeline) => (
+                      <option key={pipeline.id} value={pipeline.id}>
+                        {pipeline.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Stage</label>
+                  <select
+                    name="stageId"
+                    className="form-input"
+                    value={formData.stageId}
+                    onChange={handleInputChange}
+                    disabled={isSubmitting || !formData.pipelineId}
+                  >
+                    <option value="">Select Stage</option>
+                    {stageOptionsForForm.map((stage) => (
+                      <option key={stage.id} value={stage.id}>
+                        {stage.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -880,14 +840,31 @@ const Deals = () => {
                   <select
                     name="categoryId"
                     className="form-input"
-                    value={formData.categoryId || ''}
+                    value={formData.categoryId}
                     onChange={handleInputChange}
+                    disabled={isSubmitting}
                   >
                     <option value="">Select Category</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    {categoryOptions.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Commission Override</label>
+                  <input
+                    type="number"
+                    name="commissionAmount"
+                    className="form-input"
+                    value={formData.commissionAmount}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.01"
+                    disabled={isSubmitting}
+                  />
                 </div>
               </div>
 
@@ -897,8 +874,9 @@ const Deals = () => {
                   type="text"
                   name="venue"
                   className="form-input"
-                  value={formData.venue || ''}
+                  value={formData.venue}
                   onChange={handleInputChange}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -909,8 +887,9 @@ const Deals = () => {
                     type="date"
                     name="eventDate"
                     className="form-input"
-                    value={formData.eventDate || ''}
+                    value={formData.eventDate}
                     onChange={handleInputChange}
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -920,9 +899,10 @@ const Deals = () => {
                     type="text"
                     name="eventType"
                     className="form-input"
-                    value={formData.eventType || ''}
+                    value={formData.eventType}
                     onChange={handleInputChange}
                     placeholder="e.g., Wedding, Conference"
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -933,17 +913,20 @@ const Deals = () => {
                   type="tel"
                   name="phoneNumber"
                   className="form-input"
-                  value={formData.phoneNumber || ''}
+                  value={formData.phoneNumber}
                   onChange={handleInputChange}
+                  disabled={isSubmitting}
                 />
               </div>
 
+              {modalError && <div className="modal-error">{modalError}</div>}
+
               <div className="modal-actions">
-                <button type="button" className="modal-btn-cancel" onClick={handleCloseModal}>
+                <button type="button" className="modal-btn-cancel" onClick={handleCloseModal} disabled={isSubmitting}>
                   Cancel
                 </button>
-                <button type="submit" className="modal-btn-submit">
-                  Create Deal
+                <button type="submit" className="modal-btn-submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating…' : 'Create Deal'}
                 </button>
               </div>
             </form>
@@ -951,7 +934,7 @@ const Deals = () => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Deals
+export default Deals;

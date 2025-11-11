@@ -505,7 +505,7 @@ export default function ActivitiesList() {
     const dt = new Date(y, m, d); dt.setHours(0,0,0,0); return dt;
   };
 
-  const effectiveDate = (a: Activity) => parseDate(a.date ?? a.dueDate);
+  const effectiveDate = (a: Activity) => parseDate((a.date ?? a.dueDate) || undefined);
   const today = new Date(); today.setHours(0,0,0,0);
 
   const statusClass = (a: Activity) => {

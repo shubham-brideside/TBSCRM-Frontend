@@ -12,6 +12,8 @@ const navItems: NavItem[] = [
   { label: 'Persons', to: '/' , icon: '👥' },
   { label: 'Deals', to: '/deals', icon: '💼' },
   { label: 'Pipelines', to: '/pipelines', icon: '🛤️' },
+  { label: 'Teams', to: '/teams', icon: '🤝' },
+  { label: 'Activities', to: '/activities', icon: '🗓️' },
   { label: 'Organizations', to: '/organizations', icon: '🏢' },
   { label: 'Users', to: '/users', icon: '🧑‍💼' },
 ];
