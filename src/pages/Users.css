@@ -206,6 +206,69 @@
   vertical-align: middle;
 }
 
+.users-actions-heading {
+  text-align: right;
+  padding: 14px 20px;
+  font-weight: 600;
+  color: #475569;
+  width: 1%;
+  white-space: nowrap;
+}
+
+.users-actions-cell {
+  text-align: right;
+}
+
+.users-delete {
+  border: none;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.users-delete:hover:not(:disabled) {
+  background: #dc2626;
+  box-shadow: 0 10px 24px rgba(239, 68, 68, 0.25);
+  transform: translateY(-1px);
+}
+
+.users-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.users-action-placeholder {
+  color: #94a3b8;
+}
+
+.users-inline-error {
+  margin: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+
+.users-inline-error button {
+  border: none;
+  border-radius: 999px;
+  background: #b91c1c;
+  color: #fff;
+  padding: 6px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .users-user-cell {
   display: flex;
   align-items: center;
@@ -462,6 +525,37 @@
   background: #2563eb;
   color: #fff;
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+}
+
+.users-modal-submit:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.3);
+}
+
+.users-modal-submit-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.users-button-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: usersInviteSpin 0.9s linear infinite;
+}
+
+.users-modal-submit:disabled .users-button-spinner {
+  border-top-color: rgba(255, 255, 255, 0.8);
+}
+
+@keyframes usersInviteSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .users-modal-cancel:disabled,

@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import './Users.css';
 import { usersApi } from '../services/users';
 import type { User } from '../types/user';
+import { getStoredUser } from '../utils/authToken';
 
 type SortKey = 'name' | 'role' | 'status' | 'createdAt' | 'lastLoginAt';
 type SortDirection = 'asc' | 'desc';
@@ -66,6 +67,8 @@ export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<number | null>(null);
 
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | AllowedRole>('ALL');
@@ -79,11 +82,16 @@ export default function Users() {
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [inviteForm, setInviteForm] = useState(INVITE_FORM_INITIAL);
 
+  const currentUser = useMemo(() => getStoredUser(), []);
+  const isAdmin = (currentUser?.role ?? '').toUpperCase() === 'ADMIN';
+  const showActionsColumn = isAdmin;
+
   const loadUsers = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
       try {
         if (!silent) setLoading(true);
         setError(null);
+        if (!silent) setDeleteError(null);
         const data = await usersApi.list();
         setUsers(data);
       } catch (err: any) {
@@ -215,6 +223,7 @@ const filteredUsers = useMemo(() => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    setDeleteError(null);
     await loadUsers({ silent: true });
   };
 
@@ -279,12 +288,37 @@ const filteredUsers = useMemo(() => {
       const created = await usersApi.createUser(payload);
       setInviteSuccess(`Invitation sent to ${created.email}.`);
       closeInviteModal(true);
-      await loadUsers({ silent: true });
+      await loadUsers();
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || 'Failed to invite user.';
       setInviteError(message);
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (user: User) => {
+    if (!isAdmin) return;
+    if (currentUser?.userId && currentUser.userId === user.id) {
+      setDeleteError("You can't delete your own account.");
+      return;
+    }
+
+    const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+    const label = fullName.length > 0 ? fullName : user.email;
+    const confirmed = window.confirm(`Delete ${label}? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      setDeleteLoadingId(user.id);
+      setDeleteError(null);
+      await usersApi.deleteUser(user.id);
+      setUsers((prev) => prev.filter((item) => item.id !== user.id));
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to delete user.';
+      setDeleteError(message);
+    } finally {
+      setDeleteLoadingId(null);
     }
   };
 
@@ -394,6 +428,7 @@ const filteredUsers = useMemo(() => {
                 <th data-sortable onClick={() => handleSort('lastLoginAt')}>
                   Last login {sortIndicator('lastLoginAt')}
                 </th>
+                {showActionsColumn && <th className="users-actions-heading">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -427,10 +462,34 @@ const filteredUsers = useMemo(() => {
                   </td>
                   <td data-label="Created">{formatDate(user.createdAt)}</td>
                   <td data-label="Last login">{formatDate(user.lastLoginAt)}</td>
+                  {showActionsColumn && (
+                    <td data-label="Actions" className="users-actions-cell">
+                      {currentUser?.userId === user.id ? (
+                        <span className="users-action-placeholder">—</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="users-delete"
+                          onClick={() => void handleDeleteUser(user)}
+                          disabled={deleteLoadingId === user.id}
+                        >
+                          {deleteLoadingId === user.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
+          {showActionsColumn && deleteError && (
+            <div className="users-inline-error">
+              <span>{deleteError}</span>
+              <button type="button" onClick={() => setDeleteError(null)}>
+                Dismiss
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -544,7 +603,14 @@ const filteredUsers = useMemo(() => {
                   Cancel
                 </button>
                 <button type="submit" className="users-modal-submit" disabled={inviteLoading}>
-                  {inviteLoading ? 'Sending…' : 'Send invite'}
+                  {inviteLoading ? (
+                    <span className="users-modal-submit-content">
+                      <span className="users-button-spinner" />
+                      Sending…
+                    </span>
+                  ) : (
+                    'Send invite'
+                  )}
                 </button>
               </div>
             </form>
