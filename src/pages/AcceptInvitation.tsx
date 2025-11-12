@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { usersApi } from '../services/users';
+import { clearAuthSession } from '../utils/authToken';
 import './AuthFlow.css';
 
 export default function AcceptInvitation() {
@@ -63,6 +64,7 @@ export default function AcceptInvitation() {
     try {
       await usersApi.setPassword({ token, password, confirmPassword });
       setStatus('Password saved! Redirecting you to the login page…');
+      clearAuthSession();
       navigate('/login', { replace: true });
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || 'Unable to set password. Please try again.';

@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '../services/auth';
+import { clearAuthSession } from '../utils/authToken';
 import './AuthFlow.css';
 
 export default function ResetPassword() {
@@ -39,6 +40,7 @@ export default function ResetPassword() {
       const response = await authApi.resetPassword({ token, password, confirmPassword });
       if (response.success) {
         setStatus('Password updated successfully! Redirecting to login…');
+        clearAuthSession();
         navigate('/login', { replace: true });
       } else {
         setError(response.message || 'Unable to reset password. Try requesting a new link.');
