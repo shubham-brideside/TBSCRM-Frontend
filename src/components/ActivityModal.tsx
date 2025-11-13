@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import './ActivityModal.css';
 import { activitiesApi } from '../services/activities';
 import { usersApi } from '../services/users';
+import { organizationsApi } from '../services/organizations';
 
 export interface ActivityFormValues {
   subject: string;
@@ -35,6 +36,9 @@ export default function ActivityModal({
   const [users, setUsers] = useState<Array<{ id: number; label: string }>>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<Array<{ id: number; label: string }>>([]);
+  const [organizationsLoading, setOrganizationsLoading] = useState(false);
+  const [organizationsError, setOrganizationsError] = useState<string | null>(null);
 
   const update = (k: keyof ActivityFormValues, v: string | number) => {
     if (k === 'personId') {
@@ -67,31 +71,56 @@ export default function ActivityModal({
   };
 
   useEffect(() => {
-    if (isOpen) {
-      setValues({ subject: '' });
-      void loadCategories();
-      if (!usersLoading && users.length === 0) {
-        setUsersLoading(true);
-        setUsersError(null);
-        usersApi
-          .list()
-          .then((response) => {
-            const normalized = (response ?? []).map((user) => ({
-              id: user.id,
-              label: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email,
-            }));
-            setUsers(normalized);
-          })
-          .catch((err: any) => {
-            const message = err?.response?.data?.message || err?.message || 'Failed to load users.';
-            setUsersError(message);
-          })
-          .finally(() => {
-            setUsersLoading(false);
-          });
-      }
+    if (!isOpen) return;
+
+    setValues({ subject: '' });
+    void loadCategories();
+
+    if (!usersLoading && users.length === 0) {
+      setUsersLoading(true);
+      setUsersError(null);
+      usersApi
+        .list()
+        .then((response) => {
+          const normalized = (response ?? []).map((user) => ({
+            id: user.id,
+            label:
+              user.firstName && user.lastName
+                ? `${user.firstName} ${user.lastName}`
+                : user.email ?? String(user.id),
+          }));
+          setUsers(normalized);
+        })
+        .catch((err: any) => {
+          const message = err?.response?.data?.message || err?.message || 'Failed to load users.';
+          setUsersError(message);
+        })
+        .finally(() => {
+          setUsersLoading(false);
+        });
     }
-  }, [isOpen, usersLoading, users.length]);
+
+    if (!organizationsLoading && organizations.length === 0) {
+      setOrganizationsLoading(true);
+      setOrganizationsError(null);
+      organizationsApi
+        .list()
+        .then((response) => {
+          const normalized = (response ?? []).map((organization) => ({
+            id: organization.id,
+            label: organization.name?.trim().length ? organization.name.trim() : `Organization #${organization.id}`,
+          }));
+          setOrganizations(normalized);
+        })
+        .catch((err: any) => {
+          const message = err?.response?.data?.message || err?.message || 'Failed to load organizations.';
+          setOrganizationsError(message);
+        })
+        .finally(() => {
+          setOrganizationsLoading(false);
+        });
+    }
+  }, [isOpen, usersLoading, users.length, organizationsLoading, organizations.length]);
 
   if (!isOpen) return null;
 
@@ -124,7 +153,7 @@ export default function ActivityModal({
         </div>
 
         <div className="am-content">
-          <input className="am-input" placeholder="Follow up" value={values.subject} onChange={(e) => update('subject', e.target.value)} />
+          <input className="am-input" placeholder="Subject" value={values.subject} onChange={(e) => update('subject', e.target.value)} />
 
           <div className="am-row">
             <input className="am-input" type="date" value={values.date || ''} onChange={(e) => update('date', e.target.value)} />
@@ -195,7 +224,33 @@ export default function ActivityModal({
           <textarea className="am-textarea" placeholder="Notes (not visible to event guests)" value={values.notes || ''} onChange={(e) => update('notes', e.target.value)} />
 
           <div className="am-meta">
-            <div><strong>Organization:</strong> <input className="am-input" style={{width:200}} value={values.organization || ''} onChange={(e) => update('organization', e.target.value)} placeholder="Organization name" /></div>
+            <div>
+              <strong>Organization:</strong>{' '}
+              <select
+                className="am-input"
+                style={{ width: 200 }}
+                value={values.organization || ''}
+                onChange={(e) => update('organization', e.target.value)}
+                disabled={organizationsLoading}
+              >
+                <option value="">Select organization</option>
+                {organizationsLoading ? (
+                  <option value="" disabled>
+                    Loading organizations…
+                  </option>
+                ) : organizations.length === 0 ? (
+                  <option value="" disabled>
+                    {organizationsError ?? 'No organizations available'}
+                  </option>
+                ) : (
+                  organizations.map((organization) => (
+                    <option key={organization.id} value={organization.label}>
+                      {organization.label}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
           </div>
         </div>
 
