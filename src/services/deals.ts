@@ -79,5 +79,14 @@ export const dealsApi = {
     const response = await api.patch(`/${id}/status`, request);
     return unwrap<Deal>(response.data);
   },
+
+  update: async (id: number, payload: Partial<DealCreateRequest>): Promise<Deal> => {
+    // TODO: Backend needs to implement PATCH /api/deals/:id endpoint
+    // Currently backend doesn't support PUT or PATCH for general deal updates
+    // See BACKEND_DEAL_UPDATE_REQUIREMENT.md for details
+    // Using PATCH as standard - backend developer needs to implement this endpoint
+    const response = await api.patch(`/${id}`, payload);
+    return unwrap<Deal>(response.data);
+  },
 };
 

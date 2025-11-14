@@ -36,6 +36,7 @@ export interface Activity {
   id: number;
   subject: string;
   category?: ActivityCategory | null;
+  type?: string | null;
   priority?: ActivityPriority | null;
   status?: ActivityStatus | null;
   assignedUser?: string | null;

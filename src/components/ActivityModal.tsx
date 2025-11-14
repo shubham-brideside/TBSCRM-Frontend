@@ -7,12 +7,15 @@ export interface ActivityFormValues {
   startTime?: string;
   endTime?: string;
   priority?: string;
+  category?: string;
+  type?: string;
   assignedUser?: string;
   notes?: string;
   personName?: string;
   organization?: string;
   personId?: number;
   dealId?: number;
+  dueDate?: string;
   dateTime?: string;
 }
 
@@ -20,10 +23,12 @@ export default function ActivityModal({
   isOpen,
   onClose,
   onSave,
+  initialOrganization,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSave: (values: ActivityFormValues) => Promise<void> | void;
+  initialOrganization?: string;
 }) {
   const [values, setValues] = useState<ActivityFormValues>({ subject: '' });
   const update = (k: keyof ActivityFormValues, v: string | number) => {
@@ -39,27 +44,66 @@ export default function ActivityModal({
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setValues({ subject: '' });
+      setValues({ subject: '', organization: initialOrganization || '' });
     }
-  }, [isOpen]);
+  }, [isOpen, initialOrganization]);
 
   if (!isOpen) return null;
 
+  const mapActivityTypeToCategory = (activityType?: string): string | undefined => {
+    if (!activityType) return undefined;
+    switch (activityType.toUpperCase()) {
+      case 'CALL':
+        return 'CALL';
+      case 'MEETING':
+      case 'MEETING_SCHEDULER':
+        return 'MEETING_SCHEDULER';
+      case 'FOLLOW_UP':
+      case 'SEND_QUOTES':
+      case 'TASK':
+      case 'OTHER':
+      case 'ACTIVITY':
+      default:
+        return 'ACTIVITY';
+    }
+  };
+
+  const toIsoDate = (dateStr?: string): string | undefined => {
+    if (!dateStr) return undefined;
+    if (dateStr.includes('/')) {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+    }
+    return dateStr;
+  };
+
   const formatDateForBackend = (dateStr?: string): string | undefined => {
     if (!dateStr) return undefined;
-    // Convert yyyy-MM-dd to dd/MM/yyyy
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    // Convert yyyy-MM-dd to dd/MM/yyyy for backend
+    if (dateStr.includes('-')) {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
     }
     return dateStr;
   };
 
   const handleSave = async () => {
+    const isoDate = toIsoDate(values.date);
+    const activityType = values.type || values.category;
+    const parentCategory = mapActivityTypeToCategory(activityType);
     const formattedValues = {
       ...values,
       date: formatDateForBackend(values.date),
-      dateTime: values.date ? `${values.date}T${values.startTime || '00:00'}:00` : new Date().toISOString(),
+      dueDate: formatDateForBackend(values.date),
+      dateTime: isoDate ? `${isoDate}T${values.startTime || '00:00'}:00` : undefined,
+      // Convert priority to uppercase to match backend enum values
+      priority: values.priority ? values.priority.toUpperCase() : undefined,
+      type: activityType,
+      category: parentCategory,
     };
     await onSave(formattedValues);
     setValues({ subject: '' }); // Reset after save
@@ -83,13 +127,38 @@ export default function ActivityModal({
           </div>
 
           <div className="am-row">
+            <select
+              className="am-input"
+              value={values.type || values.category || ''}
+              onChange={(e) => {
+                const { value } = e.target;
+                const parentCategory = mapActivityTypeToCategory(value) || undefined;
+                setValues(prev => ({
+                  ...prev,
+                  type: value || undefined,
+                  category: parentCategory,
+                }));
+              }}
+            >
+              <option value="">Activity type</option>
+              <option value="FOLLOW_UP">Follow Up</option>
+              <option value="SEND_QUOTES">Send Quotes</option>
+              <option value="MEETING">Meeting</option>
+              <option value="CALL">Call</option>
+              <option value="TASK">Task</option>
+              <option value="OTHER">Other</option>
+              <option value="ACTIVITY">Activity</option>
+              <option value="MEETING_SCHEDULER">Meeting Scheduler</option>
+            </select>
             <select className="am-input" value={values.priority || ''} onChange={(e) => update('priority', e.target.value)}>
               <option value="">Priority</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
             </select>
-            <input className="am-input" placeholder="Assigned user" value={values.assignedUser || ''} onChange={(e) => update('assignedUser', e.target.value)} />
+            <select className="am-input" value={values.assignedUser || ''} onChange={(e) => update('assignedUser', e.target.value)}>
+              <option value="">Assigned user</option>
+            </select>
           </div>
 
           <textarea className="am-textarea" placeholder="Notes (not visible to event guests)" value={values.notes || ''} onChange={(e) => update('notes', e.target.value)} />

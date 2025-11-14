@@ -1,7 +1,7 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authApi } from '../services/auth';
-import { getStoredToken, storeAuthSession } from '../utils/authToken';
+import { storeAuthSession, getStoredToken } from '../utils/authToken';
 import type { LoginResponse } from '../types/auth';
 import './Login.css';
 
@@ -22,12 +22,7 @@ export default function Login() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    const existingToken = getStoredToken();
-    if (existingToken) {
-      navigate('/');
-    }
-  }, [navigate]);
+  // Remove the useEffect that redirects - RequireGuest component handles this now
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -48,6 +43,8 @@ export default function Login() {
       }
 
       const data: LoginResponse = response.data;
+      
+      // Store the token
       storeAuthSession(data.token, {
         remember,
         user: {
@@ -60,9 +57,19 @@ export default function Login() {
         },
       });
 
+      // Verify token was stored
+      const storedToken = getStoredToken();
+      if (!storedToken) {
+        setError('Failed to store authentication token. Please try again.');
+        return;
+      }
+
+      // Navigate to the intended page
       const state = location.state as LocationState | null;
-      const redirectTo = state?.from?.pathname && state.from.pathname !== '/login' ? state.from.pathname : '/';
-      navigate(redirectTo, { replace: true });
+      const redirectTo = state?.from?.pathname && state.from.pathname !== '/login' ? state.from.pathname : '/persons';
+      
+      // Use window.location for a full page reload to ensure token is properly checked
+      window.location.href = redirectTo;
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || 'Unable to login. Please check your credentials.';
       setError(message);
